@@ -1,18 +1,5 @@
-torch
-torchvision
-matplotlib
-opencv-python
-imageio
-tqdm
-configargparse
 piqa
 imageio-ffmpeg
-matplotlib
-configargparse
-tqdm
-opencv-python
-open3d
-pyquaternion
 
 # Logging
 wandb

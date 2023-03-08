@@ -7,14 +7,10 @@ from src.utils import str2bool
 
 def config_parser():
     parser = configargparse.ArgumentParser()
-    parser.add_argument('--config', is_config_file=True,
-                        help='config file path')
-    parser.add_argument("--expname", type=str,
-                        help='experiment name')
-    parser.add_argument("--basedir", type=str, default='./logs/',
-                        help='where to store ckpts and logs')
-    parser.add_argument("--datadir", type=str, default='./data/llff/fern',
-                        help='input data directory')
+    parser.add_argument('--config', is_config_file=True, help='config file path')
+    parser.add_argument("--expname", type=str, default='lego_4dir_c2f', help='experiment name')
+    parser.add_argument("--basedir", type=str, default='./logs/', help='where to store ckpts and logs')
+    parser.add_argument("--datadir", type=str, default='./data/lego', help='input data directory')
 
     # training options
     parser.add_argument("--netdepth", type=int, default=8,
@@ -25,13 +21,13 @@ def config_parser():
                         help='layers in fine network')
     parser.add_argument("--netwidth_fine", type=int, default=256,
                         help='channels per layer in fine network')
-    parser.add_argument("--N_rand", type=int, default=32 * 32 * 4,
+    parser.add_argument("--N_rand", type=int, default=1024,
                         help='batch size (number of random rays per gradient step)')
     parser.add_argument("--lrate", type=float, default=5e-4,
                         help='learning rate')
     parser.add_argument("--lrate_decay", type=int, default=250,
                         help='exponential learning rate decay (in 1000 steps)')
-    parser.add_argument("--chunk", type=int, default=1024 * 32,
+    parser.add_argument("--chunk", type=int, default=8192,
                         help='number of rays processed in parallel, decrease if running out of memory')
     parser.add_argument("--netchunk_per_gpu", type=int, default=1024 * 64 * 4,
                         help='number of pts sent through network in parallel, decrease if running out of memory')
@@ -45,7 +41,7 @@ def config_parser():
     # rendering options
     parser.add_argument("--N_samples", type=int, default=64,
                         help='number of coarse samples per ray')
-    parser.add_argument("--N_iters", type=int, default=None,
+    parser.add_argument("--N_iters", type=int, default=200001,
                         help='number of iterations')
     parser.add_argument("--N_importance", type=int, default=0,
                         help='number of additional fine samples per ray')
@@ -76,7 +72,7 @@ def config_parser():
                         default=.5, help='fraction of img taken for central crops')
 
     # dataset options
-    parser.add_argument("--dataset_type", type=str, default='llff',
+    parser.add_argument("--dataset_type", type=str, default='blender',
                         help='options: llff / blender / deepvoxels')
     parser.add_argument("--testskip", type=int, default=8,
                         help='will load 1/N images from test/val sets, useful for large datasets like deepvoxels')
@@ -123,7 +119,7 @@ def config_parser():
             "none",
             "proj_ray_dist"
         ],
-        default="none",
+        default="proj_ray_dist",
         help="ray distance loss type",
     )
 
@@ -167,7 +163,7 @@ def config_parser():
         type=str2bool,
         nargs="?",
         const=True,
-        default=False,
+        default=True,
         help="increase noise proportional to target camera parameter",
     )
 
@@ -236,14 +232,14 @@ def config_parser():
             "pinhole_rot_noise_no_multi_on_trans", 
             "pinhole_rot_noise_10k_rayo_rayd_dist"
         ],
-        default="none",
+        default="pinhole_rot_noise_10k_rayo_rayd",
         help="camera model in use",
     )
 
     parser.add_argument(
         "--non_linear_weight_decay", 
         type=float, 
-        default=0.0, 
+        default=0.1, 
         help="weight decay on non-linear distortion"
     )
     parser.add_argument(
@@ -255,7 +251,7 @@ def config_parser():
     parser.add_argument(
         "--ray_dist_loss_weight",
         type=float,
-        default=1.0,
+        default=0.0001,
         help="ratio between ray distance loss and photometric loss"
     )
 
@@ -300,8 +296,8 @@ def config_parser():
 
     # 10k model parameters
     parser.add_argument("--grid_size", default=10, type=int)
-    parser.add_argument("--ray_d_noise_scale", default=1e-4, type=float)
-    parser.add_argument("--ray_o_noise_scale", default=1e-4, type=float)
+    parser.add_argument("--ray_d_noise_scale", default=1e-3, type=float)
+    parser.add_argument("--ray_o_noise_scale", default=1e-3, type=float)
 
     # Matcher Experiments
     parser.add_argument(
@@ -314,21 +310,21 @@ def config_parser():
         type=str2bool, 
         nargs="?", 
         const=True,
-        default=False, 
+        default=True, 
         help= "Adopt custom optimizer"
     )
 
     # Curriculum Learning
     parser.add_argument(
-        "--add_ie", default=0, type=int, 
+        "--add_ie", default=200000, type=int, 
         help="step to start learning ie"
     )
     parser.add_argument(
-        "--add_od", default=0, type=int,
+        "--add_od", default=400000, type=int,
         help="step to start learning od"
     )
     parser.add_argument(
-        "--add_prd", type=int, default=50000, 
+        "--add_prd", type=int, default=600000, 
         help="step to use prd loss"
     )
 

@@ -36,6 +36,9 @@ def create_nerf(
 ):
     """Instantiate NeRF's MLP model."""
 
+    print(progress.data)
+    return
+
     camera_model = None
 
     embed_fn, input_ch = get_embedder(progress, args.multires, args.i_embed)
