@@ -57,6 +57,7 @@ class Embedder:
         self.out_dim = out_dim     
 
 def get_embedder(device, progress, multires, i=0):
+
     if i == -1:
         return nn.Identity(), 3
     
