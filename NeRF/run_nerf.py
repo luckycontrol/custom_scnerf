@@ -383,7 +383,7 @@ def train():
                 image_idx_curr_step
             ).cuda()
             kps_list = torch.from_numpy(select_coords).cuda()
-                
+
             rays_o, rays_d = get_rays_kps_use_camera(
                 H=H, 
                 W=W, 

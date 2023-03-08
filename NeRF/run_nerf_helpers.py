@@ -54,7 +54,10 @@ class Embedder:
                 out_dim += d
                     
         self.embed_fns = embed_fns
-        self.out_dim = out_dim     
+        self.out_dim = out_dim 
+
+    def embed(self, inputs):
+        return torch.cat([fn(inputs) for fn in self.embed_fns], -1)   
 
 def get_embedder(device, progress, multires, i=0):
 
