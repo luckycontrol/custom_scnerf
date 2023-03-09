@@ -43,7 +43,7 @@ def config_parser():
                         help='number of coarse samples per ray')
     parser.add_argument("--N_iters", type=int, default=200001,
                         help='number of iterations')
-    parser.add_argument("--N_importance", type=int, default=0,
+    parser.add_argument("--N_importance", type=int, default=128,
                         help='number of additional fine samples per ray')
     parser.add_argument("--perturb", type=float, default=1.,
                         help='set to 0. for no jitter, 1. for jitter')
