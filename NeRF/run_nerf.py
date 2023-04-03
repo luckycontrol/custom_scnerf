@@ -231,8 +231,6 @@ def train():
         args, progress, noisy_focal, noisy_train_poses, H, W, conf["model"]["encoder"], mode="train", device=device
     )
 
-    return
-
     global_step = start
 
     bds_dict = {
