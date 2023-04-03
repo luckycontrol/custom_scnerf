@@ -7,6 +7,8 @@ from torch import Tensor
 from typing import List
 import torch.nn as nn
 
+from model.encoder import SpatialEncoder
+
 from run_nerf_helpers import (
     get_embedder,
     NeRF,
@@ -37,6 +39,8 @@ def create_nerf(
     """Instantiate NeRF's MLP model."""
 
     camera_model = None
+
+    encoder = SpatialEncoder.from_conf(conf)
 
     embed_fn, input_ch = get_embedder(device, progress, args.multires, args.i_embed)
 
