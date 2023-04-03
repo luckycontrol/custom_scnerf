@@ -4,6 +4,8 @@ import sys
 sys.path.insert(0, "..")
 from src.utils import str2bool
 
+from pyhocon import ConfigFactory
+
 
 def config_parser():
     parser = configargparse.ArgumentParser()
@@ -11,6 +13,8 @@ def config_parser():
     parser.add_argument("--expname", type=str, default='lego_4dir_c2f', help='experiment name')
     parser.add_argument("--basedir", type=str, default='./logs/', help='where to store ckpts and logs')
     parser.add_argument("--datadir", type=str, default='./data/lego', help='input data directory')
+    # pixelNeRF 추가
+    parser.add_argument("--conf", "-c", type=str, default='configs/default_mv.conf', help="config file")
 
     # training options
     parser.add_argument("--netdepth", type=int, default=8,
@@ -37,6 +41,12 @@ def config_parser():
                         help='do not reload weights from saved ckpt')
     parser.add_argument("--ft_path", type=str, default=None,
                         help='specific weights npy file to reload for coarse network')
+    # pixelNeRF 추가
+    parser.add_argument("--batch_size", "-B", type=int, default=4, help="Object batch size(SB)")
+    parser.add_argument("--nviews", "-V", type=str, default="4", help="Number of source views (multiview)")
+    parser.add_argument("--freeze_enc", action="store_true", default=None, help="Freeze encoder weights and only train MLP")
+    parser.add_argument("--no_bbox_step", type=int, default=100000, help="Step to stop using bbox sampling")
+    parser.add_argument("--fixed_test", action="store_true", default=None, help="Freeze encoder weights and only train MLP")
 
     # rendering options
     parser.add_argument("--N_samples", type=int, default=64,
@@ -316,11 +326,11 @@ def config_parser():
 
     # Curriculum Learning
     parser.add_argument(
-        "--add_ie", default=200000, type=int, 
+        "--add_ie", default=50000, type=int, 
         help="step to start learning ie"
     )
     parser.add_argument(
-        "--add_od", default=400000, type=int,
+        "--add_od", default=100000, type=int,
         help="step to start learning od"
     )
     parser.add_argument(
@@ -328,7 +338,9 @@ def config_parser():
         help="step to use prd loss"
     )
 
+    args = parser.parse_args()
 
-    return parser
+    conf = ConfigFactory.parse_file(args.conf)
 
+    return parser, conf
 

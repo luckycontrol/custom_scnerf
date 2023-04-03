@@ -32,7 +32,7 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, netchunk=1024 * 64
     return outputs
 
 def create_nerf(
-    args, progress, noisy_focal, noisy_poses, H, W, mode="train", device="cuda"
+    args, progress, noisy_focal, noisy_poses, H, W, conf, mode="train", device="cuda", **kwargs
 ):
     """Instantiate NeRF's MLP model."""
 
