@@ -226,10 +226,13 @@ def train():
     # Create nerf model
     (
         render_kwargs_train, render_kwargs_test, start, 
-        grad_vars, optimizer, camera_model,
+        grad_vars, optimizer, camera_model, encoder
     ) = create_nerf(
         args, progress, noisy_focal, noisy_train_poses, H, W, conf["model"]["encoder"], mode="train", device=device
     )
+
+    print(encoder)
+    return
 
     global_step = start
 
