@@ -72,12 +72,12 @@ from unit_tests.visualize_matches import unit_test_matches
 
 from prd_evaluation import projected_ray_distance_evaluation
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-run_unit_test = lambda args, kwargs, test_name: None if not args.debug else \
-    test_name(**kwargs)
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# run_unit_test = lambda args, kwargs, test_name: None if not args.debug else \
+#     test_name(**kwargs)
 
-SSIM_model = SSIM().cuda()
-LPIPS_model = LPIPS(network="vgg").cuda()
+# SSIM_model = SSIM().cuda()
+# LPIPS_model = LPIPS(network="vgg").cuda()
 
 def train():
     parser, conf = config_parser()
@@ -150,7 +150,7 @@ def train():
 
     elif args.dataset_type == 'blender':
         (
-            images, noisy_extrinsic, render_poses, hwf, i_split, gt_camera_info
+            images, noisy_extrinsic, all_bboxes, all_masks, render_poses, hwf, i_split, gt_camera_info
         ) = load_blender_data(args.datadir, args.half_res, args, args.testskip)
         
         print("Loaded blender dataset")
@@ -174,6 +174,7 @@ def train():
         assert False,"Invalid Dataset Selected"
         return
     
+    return
     progress = torch.nn.Parameter(torch.tensor(0.))
     
     noisy_train_poses = noisy_extrinsic[i_train]
@@ -1048,5 +1049,5 @@ def train():
         wandb.log(train_log_at_end, step=global_step)
 
 if __name__ == '__main__':
-    torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    # torch.set_default_tensor_type('torch.cuda.FloatTensor')
     train()
