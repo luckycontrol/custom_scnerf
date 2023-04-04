@@ -80,8 +80,7 @@ from prd_evaluation import projected_ray_distance_evaluation
 # LPIPS_model = LPIPS(network="vgg").cuda()
 
 def train():
-    parser, conf = config_parser()
-    args = parser.parse_args()
+    parser = config_parser()
 
     fix_seeds(args.seed)
     if args.matcher == "superglue":
@@ -227,13 +226,10 @@ def train():
     # Create nerf model
     (
         render_kwargs_train, render_kwargs_test, start, 
-        grad_vars, optimizer, camera_model, encoder
+        grad_vars, optimizer, camera_model
     ) = create_nerf(
-        args, progress, noisy_focal, noisy_train_poses, H, W, conf["model"]["encoder"], mode="train", device=device
+        args, progress, noisy_focal, noisy_train_poses, H, W, mode="train", device=device
     )
-
-    print(encoder)
-    return
 
     global_step = start
 

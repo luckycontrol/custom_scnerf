@@ -34,13 +34,11 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, netchunk=1024 * 64
     return outputs
 
 def create_nerf(
-    args, progress, noisy_focal, noisy_poses, H, W, conf, mode="train", device="cuda", **kwargs
+    args, progress, noisy_focal, noisy_poses, H, W, mode="train", device="cuda"
 ):
     """Instantiate NeRF's MLP model."""
 
     camera_model = None
-
-    encoder = SpatialEncoder.from_conf(conf)
 
     embed_fn, input_ch = get_embedder(device, progress, args.multires, args.i_embed)
 
@@ -185,8 +183,7 @@ def create_nerf(
         start, 
         grad_vars, 
         optimizer, 
-        camera_model,
-        encoder
+        camera_model
     )
 
 
