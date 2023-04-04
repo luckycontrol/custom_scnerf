@@ -182,7 +182,6 @@ def create_nerf(
         grad_vars, 
         optimizer, 
         camera_model,
-        encoder
     )
 
 
