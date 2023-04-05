@@ -43,15 +43,15 @@ class Embedder:
         else:
             freq_bands = torch.linspace(2.**0., 2.**max_freq, steps=N_freqs)
             
-        # for freq in freq_bands:
-        #     for p_fn in self.kwargs['periodic_fns']:
-        #         embed_fns.append(lambda x, p_fn=p_fn, freq=freq : p_fn(x * freq))
-        #         out_dim += d
-
-        for i, _ in enumerate(freq_bands):
+        for freq in freq_bands:
             for p_fn in self.kwargs['periodic_fns']:
-                embed_fns.append(lambda x, p_fn=p_fn, freq=freq_bands[i], weight=self.weights[i]: p_fn(x * freq) * weight)
+                embed_fns.append(lambda x, p_fn=p_fn, freq=freq : p_fn(x * freq))
                 out_dim += d
+
+        # for i, _ in enumerate(freq_bands):
+        #     for p_fn in self.kwargs['periodic_fns']:
+        #         embed_fns.append(lambda x, p_fn=p_fn, freq=freq_bands[i], weight=self.weights[i]: p_fn(x * freq) * weight)
+        #         out_dim += d
                     
         self.embed_fns = embed_fns
         self.out_dim = out_dim 
