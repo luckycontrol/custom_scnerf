@@ -17,7 +17,7 @@ to8b = lambda x : (255*np.clip(x,0,1)).astype(np.uint8)
     
 def render(
     H, W, chunk, rays=None, noisy_focal=None, noisy_extrinsic=None, 
-    ndc=True, near=0., far=1., use_viewdirs=False, mode=None, 
+    ndc=True, near=0., far=1., use_viewdirs=False, mode=None, device=None,
     camera_model=None, image_idx=None, i_map=None, gt_intrinsic=None, 
     gt_extrinsic=None, transform_align=None, **kwargs
 ):
@@ -130,7 +130,7 @@ def render(
         rays = torch.cat([rays, viewdirs], -1)
 
     # Render and reshape
-    all_ret = batchify_rays(rays, chunk, **kwargs)
+    all_ret = batchify_rays(rays, device, chunk, **kwargs)
     for k in all_ret:
         k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
         all_ret[k] = torch.reshape(all_ret[k], k_sh)
@@ -184,6 +184,7 @@ def render_path(
 
 
 def render_rays(ray_batch,
+                device,
                 network_fn,
                 network_query_fn,
                 N_samples,
@@ -192,7 +193,7 @@ def render_rays(ray_batch,
                 perturb=0.,
                 N_importance=0,
                 network_fine=None,
-                white_bkgd=False,
+                white_bkgd=True,
                 raw_noise_std=0.,
                 verbose=False,
                 pytest=False):
@@ -232,7 +233,12 @@ def render_rays(ray_batch,
     bounds = torch.reshape(ray_batch[..., 6:8], [-1, 1, 2])
     near, far = bounds[..., 0], bounds[..., 1]  # [-1,1]
 
+    near = near.to(device)
+    far = far.to(device)
+
     t_vals = torch.linspace(0., 1., steps=N_samples)
+    t_vals = t_vals.to(device)
+
     if not lindisp:
         z_vals = near * (1. - t_vals) + far * (t_vals)
     else:
@@ -244,9 +250,12 @@ def render_rays(ray_batch,
         # get intervals between samples
         mids = .5 * (z_vals[..., 1:] + z_vals[..., :-1])
         upper = torch.cat([mids, z_vals[..., -1:]], -1)
+        upper = upper.to(device)
         lower = torch.cat([z_vals[..., :1], mids], -1)
+        lower = lower.to(device)
         # stratified samples in those intervals
         t_rand = torch.rand(z_vals.shape)
+        t_rand = t_rand.to(device)
 
         # Pytest, overwrite u with numpy's fixed random numbers
         if pytest:
@@ -260,7 +269,7 @@ def render_rays(ray_batch,
 
     raw = network_query_fn(pts, viewdirs, network_fn)
     rgb_map, disp_map, acc_map, weights, depth_map = raw2outputs(
-        raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest
+        device, raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest
     )
 
     if N_importance > 0:
@@ -281,7 +290,7 @@ def render_rays(ray_batch,
         raw = network_query_fn(pts, viewdirs, run_fn)
 
         rgb_map, disp_map, acc_map, weights, depth_map = raw2outputs(
-            raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest
+            device, raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest,
         )
 
     ret = {'rgb_map': rgb_map, 'disp_map': disp_map, 'acc_map': acc_map}
@@ -299,7 +308,7 @@ def render_rays(ray_batch,
 
     return ret
 
-def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=False):
+def raw2outputs(device, raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=True, pytest=False):
     """Transforms model's predictions to semantically meaningful values.
     Args:
         raw: [num_rays, num_samples along ray, 4]. Prediction from model.
@@ -321,10 +330,13 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
         [dists, torch.Tensor([1e10]).expand(dists[..., :1].shape)], 
         -1
     )  # [N_rays, N_samples]
+    dists = dists.to(device)
 
     dists = dists * torch.norm(rays_d[..., None, :], dim=-1)
 
     rgb = torch.sigmoid(raw[..., :3])  # [N_rays, N_samples, 3]
+    rgb = rgb.to(device)
+
     noise = 0.
     if raw_noise_std > 0.:
         noise = torch.randn(raw[..., 3].shape) * raw_noise_std
@@ -342,6 +354,7 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
             [torch.ones((alpha.shape[0], 1)), 1. - alpha + 1e-10], 
             -1
         ), -1)[:, :-1]
+    weights = weights.to(device)
     rgb_map = torch.sum(weights[..., None] * rgb, -2)  # [N_rays, 3]
 
     depth_map = torch.sum(weights * z_vals, -1)
@@ -395,12 +408,12 @@ def ndc_rays_camera(H, W, camera_model, near, rays_o, rays_d):
     
     return rays_o, rays_d
 
-def batchify_rays(rays_flat, chunk=1024 * 32, **kwargs):
+def batchify_rays(rays_flat, device, chunk=1024 * 32, **kwargs):
     """Render rays in smaller minibatches to avoid OOM.
     """
     all_ret = {}
     for i in range(0, rays_flat.shape[0], chunk):
-        ret = render_rays(rays_flat[i:i + chunk], **kwargs)
+        ret = render_rays(rays_flat[i:i + chunk], device, **kwargs)
         for key in ["rgb0", "rgb1", "rgb_map"]:
             if key in ret.keys():
                 ret[key][ret[key] >= 1.0] = 1.0

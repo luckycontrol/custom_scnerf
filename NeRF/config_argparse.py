@@ -68,7 +68,7 @@ def config_parser():
     parser.add_argument("--raw_noise_std", type=float, default=0.,
                         help='std dev of noise added to regularize sigma_a output, 1e0 recommended')
 
-    parser.add_argument("--render_only", default=True, action='store_true',
+    parser.add_argument("--render_only", default=False, action='store_true',
                         help='do not optimize, reload weights and render out render_poses path')
     parser.add_argument("--render_test", action='store_true',
                         help='render the test set instead of render_poses path')

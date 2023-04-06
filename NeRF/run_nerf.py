@@ -483,13 +483,13 @@ def train():
             rgb, disp, acc, extras = render(
                 H=H, W=W, chunk=args.chunk, noisy_focal=noisy_focal, 
                 rays=batch_rays, verbose=i < 10, retraw=True, 
-                mode="train", **render_kwargs_train,
+                mode="train", device=device, **render_kwargs_train,
             )
         else:
             rgb, disp, acc, extras = render(
                 H=H, W=W, chunk=args.chunk, rays=batch_rays, 
                 verbose=i < 10, retraw=True, camera_model=camera_model, 
-                mode="train", **render_kwargs_train,
+                mode="train", device=device, **render_kwargs_train,
             )
             
         optimizer.zero_grad()
@@ -977,7 +977,7 @@ def train():
         rgb, disp, acc, extras = render(
             H=H, W=W, chunk=args.chunk, rays=batch_rays,
             verbose=i < 10, retraw=True, camera_model=camera_model,
-            mode="train", **render_kwargs_train,
+            mode="train", device=device, **render_kwargs_train,
         )
 
         optimizer.zero_grad()
@@ -1193,20 +1193,13 @@ def train():
 
             # TODO
             with torch.no_grad():
-                if camera_model is None:
-                    rgb, disp, acc, extras = render(
-                        H=H, W=W, chunk=args.chunk, gt_intrinsic=gt_intrinsic,
-                        gt_extrinsic=gt_extrinsic, mode="val", image_idx=img_i,
-                        **render_kwargs_test
-                    )
-                else:
-                    rgb, disp, acc, extras = render(
-                        H=H, W=W, chunk=args.chunk, gt_intrinsic=gt_intrinsic,
-                        gt_extrinsic=gt_extrinsic, mode="val", i_map=i_val,
-                        image_idx=img_i, camera_model=camera_model, 
-                        transform_align=gt_transformed_pose_val[img_i_idx[0][0]], 
-                        **render_kwargs_test
-                    )
+                rgb, disp, acc, extras = render(
+                    H=H, W=W, chunk=args.chunk, gt_intrinsic=gt_intrinsic,
+                    gt_extrinsic=gt_extrinsic, mode="val", device=device, i_map=i_val,
+                    image_idx=img_i, camera_model=camera_model, 
+                    transform_align=gt_transformed_pose_val[img_i_idx[0][0]], 
+                    **render_kwargs_test
+                )
 
             rgb = rgb.reshape(H, W, 3)
             disp = disp.reshape(H, W)
