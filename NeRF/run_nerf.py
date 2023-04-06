@@ -231,6 +231,18 @@ def train():
         args, progress, noisy_focal, noisy_train_poses, H, W, mode="train", device=device
     )
 
+    for linear in render_kwargs_train["network_fn"].pts_linears:
+        linear.reset_parameters()
+    
+    for linear in render_kwargs_train["network_fn"].views_linears:
+        linear.reset_parameters()
+
+    render_kwargs_train["network_fn"].feature_linear.reset_parameters()
+    render_kwargs_train["network_fn"].alpha_linear.reset_parameters()
+    render_kwargs_train["network_fn"].rgb_linear.reset_parameters()
+
+    return
+
     global_step = start
 
     bds_dict = {
