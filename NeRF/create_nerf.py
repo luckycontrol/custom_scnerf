@@ -7,8 +7,6 @@ from torch import Tensor
 from typing import List
 import torch.nn as nn
 
-from model.encoder import SpatialEncoder
-
 from run_nerf_helpers import (
     get_embedder,
     NeRF,
@@ -183,7 +181,7 @@ def create_nerf(
         start, 
         grad_vars, 
         optimizer, 
-        camera_model
+        camera_model,
     )
 
 

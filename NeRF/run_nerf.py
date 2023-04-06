@@ -81,6 +81,7 @@ from prd_evaluation import projected_ray_distance_evaluation
 
 def train():
     parser = config_parser()
+    args = parser.parse_args()
 
     fix_seeds(args.seed)
     if args.matcher == "superglue":
@@ -318,7 +319,6 @@ def train():
     if use_batching and camera_model is None:
         rays_rgb = torch.tensor(rays_rgb).to(device)
 
-    N_iters = 200000 + 1 if not args.debug else 2
     N_iters = args.N_iters if args.N_iters is not None else N_iters
     print(f"N-iters: {N_iters}")
     
@@ -904,8 +904,354 @@ def train():
         global_step += 1
 
     # Train Rendering
-    
-    print("Training Done")
+    print("Camera Parameter Training Done")
+
+    # Volume Rendering
+    print("Volume Representation Training Start")
+    N_repr_iters = args.N_repr_iters if args.N_repr_iters is not None else 200001
+    print(f"N_repr - iters: {N_repr_iters}")
+
+    start = 0
+    global_step = start
+
+    for i in trange(start, N_repr_iters):
+        camera_model.intrinsics_noise.requires_grad_(False)
+        camera_model.extrinsics_noise.requires_grad_(False)
+        camera_model.ray_o_noise.requires_grad_(False)
+        camera_model.ray_d_noise.requires_grad_(False)
+
+        time0 = time.time()
+        scalars_to_log = {}
+        images_to_log = {}
+
+        img_i = np.random.choice(i_train)
+        img_i_train_idx = np.where(i_train == img_i)[0][0]
+        target = images[img_i]
+        noisy_poses = noisy_extrinsic[img_i, :3, :4]
+
+        coords = torch.stack(
+            torch.meshgrid(
+                torch.linspace(0, W - 1, W),
+                torch.linspace(0, H - 1, H),
+            ),
+            -1
+        )
+
+        coords = torch.reshape(coords, [-1, 2])
+        assert coords[:, 0].max() < W and coords[:, 1].max() < H
+        select_inds = np.random.choice(
+            coords.shape[0],
+            size=[N_rand],
+            replace=False
+        )
+        select_coords = coords[select_inds].long()
+
+        rays_o, rays_d = get_rays_kps_use_camera(
+            H=H, 
+            W=W, 
+            camera_model=camera_model, 
+            kps_list=select_coords
+        )
+
+        batch_rays = torch.stack([rays_o, rays_d], 0)
+        target_s = taget[select_coords[:, 1], select_coords[:, 0]]
+
+        rgb, disp, acc, extras = render(
+            H=H, W=W, chunk=args.chunk, rays=batch_rays,
+            verbose=i < 10, retraw=True, camera_model=camera_model,
+            mode="train", **render_kwargs_train,
+        )
+
+        optimizer.zero_grad()
+        train_loss_1 = img2mse(rgb, target_s)
+        trans = extras['raw'][..., -1]
+        train_psnr_1 = mse2psnr(train_loss_1)
+        train_loss = train_loss_1
+
+        match_fun = runSuperGlueSinglePair if args.matcher == "superglue" else runSIFTSinglePair
+
+        if 'rgb0' in extras:
+            train_loss_0 = img2mse(extras['rgb0'], target_s)
+            train_loss = train_loss + train_loss_0
+            train_psnr_0 = mse2psnr(train_loss_0)
+
+        train_loss.backward()
+        optimizer.step()
+
+        # update learning rate
+        decay_rate = 0.1
+        decay_steps = args.lrate_decay * 1000
+        new_lrate = args.lrate * (decay_rate ** (global_step / decay_steps))
+
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = new_lrate
+        
+        dt = time.time() - time0
+
+        if i % args.i_weights == 0:
+            path = os.path.join(basedir, expname, 'volume_repr_{:06d}.tar'.format(i))
+            save_dict = {
+                'global_step': global_step,
+                'network_fn_state_dict': (
+                    render_kwargs_train['network_fn'].state_dict()
+                ),
+                'network_fine_state_dict': (
+                    render_kwargs_train['network_fine'].state_dict()
+                ),
+                'optimizer_state_dict': optimizer.state_dict(),
+            }
+
+            if args.camera_model != "none":
+                save_dict["camera_model"] = camera_model.state_dict()
+            
+            torch.save(save_dict, path)
+            print("Saved volume repr checkpoints at", path)
+        
+        test_render = (i % args.i_testset == 0 and i > 0) or args.debug
+        val_render = (i % args.i_img == 0) or args.debug
+
+        # Test Rendering
+        if test_render:
+        # if False:
+
+            print("Starts Test Rendering")
+            with torch.no_grad():
+                testsavedir = os.path.join(
+                    basedir, expname, 'testset_{:06d}'.format(i)
+                )
+                os.makedirs(testsavedir, exist_ok=True)
+                print('test poses shape', noisy_extrinsic[i_test].shape)
+
+                if camera_model is None:
+                    eval_prd = projected_ray_distance_evaluation(
+                        images=images, 
+                        index_list=i_test,
+                        args=args, 
+                        ray_fun=get_rays_kps_no_camera,
+                        ray_fun_gt=get_rays_kps_no_camera,
+                        H=H,
+                        W=W,
+                        mode="test",
+                        matcher=matcher,
+                        gt_intrinsic=gt_intrinsic,
+                        gt_extrinsic=gt_extrinsic,
+                        method="NeRF",
+                        device=device,
+                        intrinsic=gt_intrinsic,
+                        extrinsic=gt_extrinsic
+                    )
+                    
+                else:
+                    eval_prd = projected_ray_distance_evaluation(
+                        images=images, 
+                        index_list=i_test,
+                        args=args, 
+                        ray_fun=get_rays_kps_use_camera,
+                        ray_fun_gt=get_rays_kps_no_camera,
+                        H=H,
+                        W=W,
+                        mode="test",
+                        matcher=matcher,
+                        gt_intrinsic=gt_intrinsic,
+                        gt_extrinsic=gt_extrinsic,
+                        method="NeRF",
+                        device=device,
+                        camera_model=camera_model,
+                        intrinsic=gt_intrinsic,
+                        extrinsic=gt_extrinsic
+                    )
+                    
+                scalars_to_log["test/proj_ray_dist_loss"] = eval_prd
+                print(f"Test projection ray distance loss {eval_prd}")
+                
+                with torch.no_grad():
+            
+                    # transform_align: 4 X 4
+                    # gt_test: N X 4 X 4
+                        
+                    if camera_model is None:
+                        _hwf = (hwf[0], hwf[1], None)
+                        rgbs, disps = render_path(
+                            gt_extrinsic[i_test],
+                            _hwf, args.chunk, render_kwargs_test, 
+                            gt_imgs=images[i_test], 
+                            savedir=testsavedir, mode="test", 
+                            args=args, gt_intrinsic=gt_intrinsic, 
+                            gt_extrinsic=gt_extrinsic,
+                            i_map=i_test
+                        )
+                        
+                    else:                    
+                        # Convert the focal to None (Not needed)
+                        _hwf = (hwf[0], hwf[1], None)
+                        rgbs, disps = render_path(
+                            gt_transformed_pose_test,
+                            _hwf, args.chunk, render_kwargs_test, 
+                            gt_imgs=images[i_test], 
+                            savedir=testsavedir, mode="test", 
+                            camera_model=camera_model, args=args, 
+                            gt_intrinsic=gt_intrinsic, 
+                            gt_extrinsic=gt_extrinsic,
+                            i_map=i_test,
+                            transform_align=gt_transformed_pose_test
+                        )
+
+                test_psnr_list, test_ssim_list, test_lpips_list = [], [], []
+
+                for idx in range(len(i_test)):
+                    viewing_rgbs, viewing_disps = rgbs[idx], disps[idx]
+                    target = images[i_test[idx]]
+                    
+                    viewing_rgbs = viewing_rgbs.reshape(H, W, 3)
+                    viewing_disps = viewing_disps.reshape(H, W)
+
+                    test_img_loss = img2mse(
+                        torch.from_numpy(viewing_rgbs), target.detach().cpu()
+                    )
+                    test_psnr = mse2psnr(test_img_loss)
+                    test_psnr = test_psnr.item()
+
+                    test_ssim = SSIM_model(
+                        torch.clip(
+                            torch.from_numpy(
+                                viewing_rgbs
+                            ).permute(2, 0, 1)[None, ...], 
+                            0, 
+                            1,
+                        ).cuda(), 
+                        target.permute(2, 0, 1)[None, ...]
+                    ).item()
+
+                    test_lpips = LPIPS_model(
+                        torch.clip(
+                            torch.from_numpy(
+                                viewing_rgbs
+                            ).permute(2, 0, 1)[None, ...],
+                            0, 
+                            1,
+                        ).cuda(), 
+                        target.permute(2, 0, 1)[None, ...]
+                    ).item()
+
+                    test_psnr_list.append(test_psnr)
+                    test_ssim_list.append(test_ssim)
+                    test_lpips_list.append(test_lpips)
+
+                test_psnr_mean = torch.tensor(test_psnr_list).mean().item()
+                test_ssim_mean = torch.tensor(test_ssim_list).mean().item()
+                test_lpips_mean = torch.tensor(test_lpips_list).mean().item()
+
+                scalars_to_log["test/psnr"] = test_psnr_mean
+                scalars_to_log["test/ssim"] = test_ssim_mean
+                scalars_to_log["test/lpips"] = test_lpips_mean
+                    
+                print('Saved test set')
+                print("[Test] PSNR: {}".format(test_psnr_mean))
+                print("[Test] SSIM: {}".format(test_ssim_mean))
+                print("[Test] LPIPS: {}".format(test_lpips_mean))
+
+        if (i % args.i_print == 0):
+            
+                print(
+                    "[TRAIN] Iter: {} Loss: {}  PSNR: {}".format(
+                        i, train_loss.item(), train_psnr_1.item()
+                    )
+                )
+
+                scalars_to_log["train/level_1_psnr"] = train_psnr_1.item()
+                scalars_to_log["train/level_1_loss"] = train_loss_1.item()
+                scalars_to_log["train/loss"] = train_loss.item()
+
+                if "rgb0" in extras:
+                    scalars_to_log["train/level_0_psnr"] = train_psnr_0.item()
+                    scalars_to_log["train/level_0_loss"] = train_loss_0.item()
+         
+        # Validation
+        if val_render:
+            print("Starts Validation Rendering")
+            img_i = np.random.choice(i_val)
+            img_i_idx = np.where(i_val == img_i)
+            target = images[img_i]
+
+            # TODO
+            with torch.no_grad():
+                if camera_model is None:
+                    rgb, disp, acc, extras = render(
+                        H=H, W=W, chunk=args.chunk, gt_intrinsic=gt_intrinsic,
+                        gt_extrinsic=gt_extrinsic, mode="val", image_idx=img_i,
+                        **render_kwargs_test
+                    )
+                else:
+                    rgb, disp, acc, extras = render(
+                        H=H, W=W, chunk=args.chunk, gt_intrinsic=gt_intrinsic,
+                        gt_extrinsic=gt_extrinsic, mode="val", i_map=i_val,
+                        image_idx=img_i, camera_model=camera_model, 
+                        transform_align=gt_transformed_pose_val[img_i_idx[0][0]], 
+                        **render_kwargs_test
+                    )
+
+            rgb = rgb.reshape(H, W, 3)
+            disp = disp.reshape(H, W)
+
+            val_img_loss = img2mse(rgb, target)
+            val_psnr = mse2psnr(val_img_loss)
+            
+            images_to_log["val/rgb"] = to_pil(rgb)
+            images_to_log["val/disp"] = to_pil(disp)
+            scalars_to_log["val/psnr"] = val_psnr.item()
+            scalars_to_log["val/loss"] = val_img_loss.item()
+
+            print("VAL PSNR {}: {}".format(img_i, val_psnr.item()))
+
+            if camera_model is None:
+                eval_prd = projected_ray_distance_evaluation(
+                    images=images, 
+                    index_list=i_val,
+                    args=args, 
+                    ray_fun=get_rays_kps_no_camera,
+                    ray_fun_gt=get_rays_kps_no_camera,
+                    H=H,
+                    W=W,
+                    mode="val",
+                    matcher=matcher,
+                    gt_intrinsic=gt_intrinsic,
+                    gt_extrinsic=gt_extrinsic,
+                    method="NeRF",
+                    device=device,
+                    intrinsic=gt_intrinsic,
+                    extrinsic=gt_extrinsic,
+                )
+
+            else:
+                eval_prd = projected_ray_distance_evaluation(
+                    images=images, 
+                    index_list=i_val,
+                    args=args, 
+                    ray_fun=get_rays_kps_use_camera,
+                    ray_fun_gt=get_rays_kps_no_camera,
+                    H=H,
+                    W=W,
+                    mode="val",
+                    matcher=matcher,
+                    gt_intrinsic=gt_intrinsic,
+                    gt_extrinsic=gt_extrinsic,
+                    method="NeRF",
+                    device=device,
+                    camera_model=camera_model
+                )            
+            
+            scalars_to_log["val/proj_ray_dist_loss"] = eval_prd
+
+            print("Validation PRD : {}".format(eval_prd))
+            
+        # Logging Step
+            
+        for key, val in images_to_log.items():
+            scalars_to_log[key] = wandb.Image(val)    
+        wandb.log(scalars_to_log)
+                
+        global_step += 1
+
     print("Starts Train Rendering")
 
     train_log_at_end = {}

@@ -10,9 +10,9 @@ from pyhocon import ConfigFactory
 def config_parser():
     parser = configargparse.ArgumentParser()
     parser.add_argument('--config', is_config_file=True, help='config file path')
-    parser.add_argument("--expname", type=str, default='lego_4dir_c2f', help='experiment name')
+    parser.add_argument("--expname", type=str, default='lego_4dir_c2f_unbalance_back', help='experiment name')
     parser.add_argument("--basedir", type=str, default='./logs/', help='where to store ckpts and logs')
-    parser.add_argument("--datadir", type=str, default='./data/lego', help='input data directory')
+    parser.add_argument("--datadir", type=str, default='./data/lego_4dir_unbalance_back', help='input data directory')
 
     # training options
     parser.add_argument("--netdepth", type=int, default=8,
@@ -23,7 +23,7 @@ def config_parser():
                         help='layers in fine network')
     parser.add_argument("--netwidth_fine", type=int, default=256,
                         help='channels per layer in fine network')
-    parser.add_argument("--N_rand", type=int, default=2048,
+    parser.add_argument("--N_rand", type=int, default=1024,
                         help='batch size (number of random rays per gradient step)')
     parser.add_argument("--lrate", type=float, default=5e-4,
                         help='learning rate')
@@ -40,12 +40,13 @@ def config_parser():
     parser.add_argument("--ft_path", type=str, default=None,
                         help='specific weights npy file to reload for coarse network')
 
+
     # rendering options
-    parser.add_argument("--N_samples", type=int, default=128,
+    parser.add_argument("--N_samples", type=int, default=64,
                         help='number of coarse samples per ray')
     parser.add_argument("--N_iters", type=int, default=200001,
                         help='number of iterations')
-    parser.add_argument("--N_importance", type=int, default=512,
+    parser.add_argument("--N_importance", type=int, default=128,
                         help='number of additional fine samples per ray')
     parser.add_argument("--perturb", type=float, default=1.,
                         help='set to 0. for no jitter, 1. for jitter')
@@ -318,15 +319,15 @@ def config_parser():
 
     # Curriculum Learning
     parser.add_argument(
-        "--add_ie", default=50000, type=int, 
+        "--add_ie", default=25000, type=int, 
         help="step to start learning ie"
     )
     parser.add_argument(
-        "--add_od", default=100000, type=int,
+        "--add_od", default=50000, type=int,
         help="step to start learning od"
     )
     parser.add_argument(
-        "--add_prd", type=int, default=600000, 
+        "--add_prd", type=int, default=100000, 
         help="step to use prd loss"
     )
 
