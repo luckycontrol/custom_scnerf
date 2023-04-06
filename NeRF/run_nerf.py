@@ -72,12 +72,12 @@ from unit_tests.visualize_matches import unit_test_matches
 
 from prd_evaluation import projected_ray_distance_evaluation
 
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# run_unit_test = lambda args, kwargs, test_name: None if not args.debug else \
-#     test_name(**kwargs)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+run_unit_test = lambda args, kwargs, test_name: None if not args.debug else \
+    test_name(**kwargs)
 
-# SSIM_model = SSIM().cuda()
-# LPIPS_model = LPIPS(network="vgg").cuda()
+SSIM_model = SSIM().cuda()
+LPIPS_model = LPIPS(network="vgg").cuda()
 
 def train():
     parser = config_parser()
@@ -173,8 +173,7 @@ def train():
     else:
         assert False,"Invalid Dataset Selected"
         return
-    
-    return
+
     progress = torch.nn.Parameter(torch.tensor(0.))
     
     noisy_train_poses = noisy_extrinsic[i_train]
