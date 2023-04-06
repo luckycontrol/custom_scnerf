@@ -181,7 +181,11 @@ def create_nerf(
         start, 
         grad_vars, 
         optimizer, 
+<<<<<<< HEAD
         camera_model,
+=======
+        camera_model
+>>>>>>> 4afa16a2a194bbfc384168b0723da51b75e475d5
     )
 
 
