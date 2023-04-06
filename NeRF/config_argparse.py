@@ -44,8 +44,15 @@ def config_parser():
     # rendering options
     parser.add_argument("--N_samples", type=int, default=64,
                         help='number of coarse samples per ray')
-    parser.add_argument("--N_iters", type=int, default=200001,
-                        help='number of iterations')
+    
+    # -- nerfmm: N_iters for train camera parameters --
+    parser.add_argument("--N_iters", type=int, default=50001,
+                        help='number of iterations for train camera parameters')
+    
+    # -- nerfmm: N_repr_iters for train volume representation --
+    parser.add_argument("--N_repr_iters", type=int, default=200001,
+                        help='number of iterations for train volume representation')
+
     parser.add_argument("--N_importance", type=int, default=128,
                         help='number of additional fine samples per ray')
     parser.add_argument("--perturb", type=float, default=1.,
@@ -61,7 +68,7 @@ def config_parser():
     parser.add_argument("--raw_noise_std", type=float, default=0.,
                         help='std dev of noise added to regularize sigma_a output, 1e0 recommended')
 
-    parser.add_argument("--render_only", action='store_true',
+    parser.add_argument("--render_only", default=True, action='store_true',
                         help='do not optimize, reload weights and render out render_poses path')
     parser.add_argument("--render_test", action='store_true',
                         help='render the test set instead of render_poses path')

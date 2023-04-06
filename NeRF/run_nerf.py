@@ -231,18 +231,6 @@ def train():
         args, progress, noisy_focal, noisy_train_poses, H, W, mode="train", device=device
     )
 
-    for linear in render_kwargs_train["network_fn"].pts_linears:
-        linear.reset_parameters()
-    
-    for linear in render_kwargs_train["network_fn"].views_linears:
-        linear.reset_parameters()
-
-    render_kwargs_train["network_fn"].feature_linear.reset_parameters()
-    render_kwargs_train["network_fn"].alpha_linear.reset_parameters()
-    render_kwargs_train["network_fn"].rgb_linear.reset_parameters()
-
-    return
-
     global_step = start
 
     bds_dict = {
@@ -914,14 +902,33 @@ def train():
                 
         global_step += 1
 
-    # Train Rendering
+    # Camera Parameter Training Done
     print("Camera Parameter Training Done")
 
-    # Volume Rendering
+    # Volume Representation Training
     print("Volume Representation Training Start")
     N_repr_iters = args.N_repr_iters if args.N_repr_iters is not None else 200001
     print(f"N_repr - iters: {N_repr_iters}")
 
+    # Reset model's parameters
+    print("---Reset model's parameters---")
+    for linear in render_kwargs_train["network_fn"].pts_linears:
+        linear.reset_parameters()
+    
+    for linear in render_kwargs_train["network_fn"].views_linears:
+        linear.reset_parameters()
+
+    render_kwargs_train["network_fn"].output_linear.reset_parameters()
+
+    for linear in render_kwargs_train["network_fine"].pts_linears:
+        linear.reset_parameters()
+
+    for linear in render_kwargs_train["network_fine"].views_linears:
+        linear.reset_parameters()
+
+    render_kwargs_train["network_fine"].output_linear.reset_parameters()
+
+    # Start Training
     start = 0
     global_step = start
 
@@ -938,7 +945,7 @@ def train():
         img_i = np.random.choice(i_train)
         img_i_train_idx = np.where(i_train == img_i)[0][0]
         target = images[img_i]
-        noisy_poses = noisy_extrinsic[img_i, :3, :4]
+        noisy_pose = noisy_extrinsic[img_i, :3, :4]
 
         coords = torch.stack(
             torch.meshgrid(
@@ -965,7 +972,7 @@ def train():
         )
 
         batch_rays = torch.stack([rays_o, rays_d], 0)
-        target_s = taget[select_coords[:, 1], select_coords[:, 0]]
+        target_s = target[select_coords[:, 1], select_coords[:, 0]]
 
         rgb, disp, acc, extras = render(
             H=H, W=W, chunk=args.chunk, rays=batch_rays,
