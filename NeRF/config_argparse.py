@@ -10,9 +10,9 @@ from pyhocon import ConfigFactory
 def config_parser():
     parser = configargparse.ArgumentParser()
     parser.add_argument('--config', is_config_file=True, help='config file path')
-    parser.add_argument("--expname", type=str, default='ship_4dir_full_pose', help='experiment name')
+    parser.add_argument("--expname", type=str, default='chair_4dir_full_pose', help='experiment name')
     parser.add_argument("--basedir", type=str, default='./logs/', help='where to store ckpts and logs')
-    parser.add_argument("--datadir", type=str, default='./data/ship_4dir', help='input data directory')
+    parser.add_argument("--datadir", type=str, default='./data/chair_4dir', help='input data directory')
 
     # training options
     parser.add_argument("--netdepth", type=int, default=8,
@@ -29,7 +29,7 @@ def config_parser():
                         help='learning rate')
     parser.add_argument("--lrate_decay", type=int, default=250,
                         help='exponential learning rate decay (in 1000 steps)')
-    parser.add_argument("--chunk", type=int, default=8192,
+    parser.add_argument("--chunk", type=int, default=1024 * 32,
                         help='number of rays processed in parallel, decrease if running out of memory')
     parser.add_argument("--netchunk_per_gpu", type=int, default=1024 * 64 * 4,
                         help='number of pts sent through network in parallel, decrease if running out of memory')
