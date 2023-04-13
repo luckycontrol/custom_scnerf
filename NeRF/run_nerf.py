@@ -72,19 +72,15 @@ from unit_tests.visualize_matches import unit_test_matches
 
 from prd_evaluation import projected_ray_distance_evaluation
 
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# run_unit_test = lambda args, kwargs, test_name: None if not args.debug else \
-#     test_name(**kwargs)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+run_unit_test = lambda args, kwargs, test_name: None if not args.debug else \
+    test_name(**kwargs)
 
-# SSIM_model = SSIM().cuda()
-# LPIPS_model = LPIPS(network="vgg").cuda()
+SSIM_model = SSIM().cuda()
+LPIPS_model = LPIPS(network="vgg").cuda()
 
 def train():
     parser = config_parser()
-<<<<<<< HEAD
-    args = parser.parse_args()
-=======
->>>>>>> 4afa16a2a194bbfc384168b0723da51b75e475d5
 
     fix_seeds(args.seed)
     if args.matcher == "superglue":
@@ -1049,5 +1045,5 @@ def train():
         wandb.log(train_log_at_end, step=global_step)
 
 if __name__ == '__main__':
-    # torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
     train()

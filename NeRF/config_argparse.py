@@ -12,11 +12,7 @@ def config_parser():
     parser.add_argument('--config', is_config_file=True, help='config file path')
     parser.add_argument("--expname", type=str, default='lego_4dir_c2f_unbalance_back', help='experiment name')
     parser.add_argument("--basedir", type=str, default='./logs/', help='where to store ckpts and logs')
-<<<<<<< HEAD
-    parser.add_argument("--datadir", type=str, default='./data/lego_4dir_unbalance_back', help='input data directory')
-=======
     parser.add_argument("--datadir", type=str, default='./data/lego', help='input data directory')
->>>>>>> 4afa16a2a194bbfc384168b0723da51b75e475d5
 
     # training options
     parser.add_argument("--netdepth", type=int, default=8,
@@ -43,10 +39,6 @@ def config_parser():
                         help='do not reload weights from saved ckpt')
     parser.add_argument("--ft_path", type=str, default=None,
                         help='specific weights npy file to reload for coarse network')
-<<<<<<< HEAD
-
-=======
->>>>>>> 4afa16a2a194bbfc384168b0723da51b75e475d5
 
     # rendering options
     parser.add_argument("--N_samples", type=int, default=64,
