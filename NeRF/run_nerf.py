@@ -231,6 +231,16 @@ def train():
         args, progress, noisy_focal, noisy_train_poses, H, W, mode="train", device=device
     )
 
+    for layer in render_kwargs_train["network_fn"].pts_linears:
+        layer.reset_parameters()
+
+    for layer in render_kwargs_train["network_fn"].views_linears:
+        layer.reset_parameters()
+
+    render_kwargs_train["network_fn"].
+
+    return
+
     global_step = start
 
     bds_dict = {

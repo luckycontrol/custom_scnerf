@@ -96,8 +96,6 @@ class NeRF(nn.Module):
         self.input_ch_views = input_ch_views
         self.skips = skips
         self.use_viewdirs = use_viewdirs
-
-        self.progress = torch.nn.Parameter(torch.tensor(0.))
         
         self.pts_linears = nn.ModuleList(
             [DenseLayer(input_ch, W, activation="relu")] + [DenseLayer(W, W, activation="relu") if i not in self.skips else DenseLayer(W + input_ch, W, activation="relu") for i in range(D-1)])
