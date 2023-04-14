@@ -10,9 +10,9 @@ from pyhocon import ConfigFactory
 def config_parser():
     parser = configargparse.ArgumentParser()
     parser.add_argument('--config', is_config_file=True, help='config file path')
-    parser.add_argument("--expname", type=str, default='material_4dir_c2f', help='experiment name')
+    parser.add_argument("--expname", type=str, default='lego_4dirs_c2f_use_viewdirs', help='experiment name')
     parser.add_argument("--basedir", type=str, default='./logs/', help='where to store ckpts and logs')
-    parser.add_argument("--datadir", type=str, default='./data/material_4dir', help='input data directory')
+    parser.add_argument("--datadir", type=str, default='./data/lego', help='input data directory')
 
     # training options
     parser.add_argument("--netdepth", type=int, default=8,
@@ -50,7 +50,7 @@ def config_parser():
                         help='number of additional fine samples per ray')
     parser.add_argument("--perturb", type=float, default=1.,
                         help='set to 0. for no jitter, 1. for jitter')
-    parser.add_argument("--use_viewdirs", action='store_true',
+    parser.add_argument("--use_viewdirs", action='store', type=bool, default=True,
                         help='use full 5D input instead of 3D')
     parser.add_argument("--i_embed", type=int, default=0,
                         help='set 0 for default positional encoding, -1 for none')
