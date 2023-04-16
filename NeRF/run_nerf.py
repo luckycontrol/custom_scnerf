@@ -81,6 +81,7 @@ LPIPS_model = LPIPS(network="vgg").cuda()
 
 def train():
     parser = config_parser()
+    args = parser.parse_args()
 
     fix_seeds(args.seed)
     if args.matcher == "superglue":
@@ -173,7 +174,6 @@ def train():
         assert False,"Invalid Dataset Selected"
         return
     
-    return
     progress = torch.nn.Parameter(torch.tensor(0.))
 
     noisy_train_poses = noisy_extrinsic[i_train]
@@ -483,13 +483,13 @@ def train():
             rgb, disp, acc, extras = render(
                 H=H, W=W, chunk=args.chunk, noisy_focal=noisy_focal,
                 rays=batch_rays, verbose=i < 10, retraw=True,
-                mode="train", device=device, **render_kwargs_train,
+                mode="train", **render_kwargs_train,
             )
         else:
             rgb, disp, acc, extras = render(
                 H=H, W=W, chunk=args.chunk, rays=batch_rays,
                 verbose=i < 10, retraw=True, camera_model=camera_model,
-                mode="train", device=device, **render_kwargs_train,
+                mode="train", **render_kwargs_train,
             )
 
         optimizer.zero_grad()
@@ -612,6 +612,7 @@ def train():
             )
             scalars_to_log.update(scalar_dict)
             images_to_log.update(image_dict)
+            render_kwargs_train["network_fine"].log()
 
         # NOTE: IMPORTANT!
         ###   update learning rate   ###
@@ -902,31 +903,20 @@ def train():
 
         global_step += 1
 
-    # Camera Parameter Training Done
+    # nerfmm - 카메라 파라미터 학습 종료
     print("Camera Parameter Training Done")
 
-    # Volume Representation Training
-    print("Volume Representation Training Start")
     N_repr_iters = args.N_repr_iters if args.N_repr_iters is not None else 200001
     print(f"N_repr - iters: {N_repr_iters}")
 
     # Reset model's parameters
     print("---Reset model's parameters---")
-    for linear in render_kwargs_train["network_fn"].pts_linears:
-        linear.reset_parameters()
+    render_kwargs_train['network_fn'].reset()
+    render_kwargs_train['network_fine'].reset()
 
-    for linear in render_kwargs_train["network_fn"].views_linears:
-        linear.reset_parameters()
+    render_kwargs_train['network_fine'].log()
 
-    render_kwargs_train["network_fn"].output_linear.reset_parameters()
-
-    for linear in render_kwargs_train["network_fine"].pts_linears:
-        linear.reset_parameters()
-
-    for linear in render_kwargs_train["network_fine"].views_linears:
-        linear.reset_parameters()
-
-    render_kwargs_train["network_fine"].output_linear.reset_parameters()
+    return
 
     # Start Training
     start = 0

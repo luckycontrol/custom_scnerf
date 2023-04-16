@@ -53,8 +53,8 @@ def create_nerf(
     skips = [4]
     model = NeRF(D=args.netdepth, W=args.netwidth, input_ch=input_ch, 
                  output_ch=output_ch, skips=skips, 
-                 input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs)
-    model = nn.DataParallel(model).to(device)
+                 input_ch_views=input_ch_views, use_viewdirs=args.      use_viewdirs)
+    #model = nn.DataParallel(model).to(device)
     grad_vars = list(model.parameters())
     
     model_fine = None
@@ -62,7 +62,7 @@ def create_nerf(
         model_fine = NeRF(D=args.netdepth_fine, W=args.netwidth_fine,
             input_ch=input_ch, output_ch=output_ch, skips=skips,
             input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs)
-        model_fine = nn.DataParallel(model_fine).to(device)
+        #model_fine = nn.DataParallel(model_fine).to(device)
         grad_vars += list(model_fine.parameters())
 
     network_query_fn = lambda inputs, viewdirs, network_fn: run_network(
@@ -181,11 +181,7 @@ def create_nerf(
         start, 
         grad_vars, 
         optimizer, 
-<<<<<<< HEAD
-        camera_model,
-=======
         camera_model
->>>>>>> 4afa16a2a194bbfc384168b0723da51b75e475d5
     )
 
 

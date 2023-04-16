@@ -10,7 +10,7 @@ from pyhocon import ConfigFactory
 def config_parser():
     parser = configargparse.ArgumentParser()
     parser.add_argument('--config', is_config_file=True, help='config file path')
-    parser.add_argument("--expname", type=str, default='lego_4dir_c2f_unbalance_back', help='experiment name')
+    parser.add_argument("--expname", type=str, default='lego_4dir_nerfmm_test', help='experiment name')
     parser.add_argument("--basedir", type=str, default='./logs/', help='where to store ckpts and logs')
     parser.add_argument("--datadir", type=str, default='./data/lego', help='input data directory')
 
@@ -43,8 +43,15 @@ def config_parser():
     # rendering options
     parser.add_argument("--N_samples", type=int, default=64,
                         help='number of coarse samples per ray')
-    parser.add_argument("--N_iters", type=int, default=200001,
+    
+    # nerfmm - 카메라 파라미터 이터레이션: 5000번
+    parser.add_argument("--N_iters", type=int, default=2001,
                         help='number of iterations')
+    
+    # nerfmm - 3차원 학습 이터레이션: 200000번
+    parser.add_argument("--N_repr_iters", type=int, default=200001,
+                        help='number of iterations')
+
     parser.add_argument("--N_importance", type=int, default=128,
                         help='number of additional fine samples per ray')
     parser.add_argument("--perturb", type=float, default=1.,
