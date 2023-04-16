@@ -318,7 +318,6 @@ def train():
     if use_batching and camera_model is None:
         rays_rgb = torch.tensor(rays_rgb).to(device)
 
-    N_iters = 200000 + 1 if not args.debug else 2
     N_iters = args.N_iters if args.N_iters is not None else N_iters
     print(f"N-iters: {N_iters}")
 
