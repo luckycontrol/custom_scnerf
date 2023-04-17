@@ -998,8 +998,85 @@ def train():
             train_loss = train_loss + train_loss_0
             train_psnr_0 = mse2psnr(train_loss_0)
 
-        train_loss.backward()
-        optimizer.step()
+        if args.ray_loss_type != "none" and (
+                global_step % args.i_ray_dist_loss == 1 or
+                args.i_ray_dist_loss == 1 or
+                args.debug
+            ) and global_step >= args.add_prd:
+            if img_i in image_pairs.keys():
+                img_j = np.random.choice(image_pairs[img_i])
+                img_j_train_idx = np.where(i_train == img_j)[0][0]
+                pair_key = (img_i_train_idx, img_j_train_idx)
+                if pair_key in image_pair_cache.keys():
+                    result = image_pair_cache[pair_key]
+                else:
+                    with torch.no_grad():
+                        result = match_fun(
+                                matcher,
+                                images[img_i],
+                                images[img_j],
+                                0,
+                                args
+                            )
+                        result = preprocess_match(result)
+                        if result[0] is not None and result[1] is not None:
+                            image_pair_cache[pair_key] = result
+                    
+                    if result[0] is not None and result[1] is not None:
+                        kps0_list, kps1_list = result
+
+                        rays_i = get_rays_kps_use_camera(
+                            part,
+                            H=H,
+                            W=W,
+                            camera_model=camera_model,
+                            idx_in_camera_param=img_i_train_idx,
+                            kps_list=kps0_list
+                        )
+
+                        rays_j = get_rays_kps_use_camera(
+                            part,
+                            H=H,
+                            W=W,
+                            camera_model=camera_model,
+                            idx_in_camera_param=img_j_train_idx,
+                            kps_list=kps1_list
+                        )
+
+                        ray_dist_loss_ret, n_match = proj_ray_dist_loss_single(
+                            kps0_list=kps0_list,
+                            kps1_list=kps1_list,
+                            img_idx0=img_i,
+                            img_idx1=img_j,
+                            rays0=rays_i,
+                            rays1=rays_j,
+                            mode="train",
+                            device=device,
+                            H=H,
+                            W=W,
+                            args=args,
+                            camera_model=camera_model,
+                            method="NeRF",
+                            i_map=i_train
+                        )
+
+                        logger_ray_dist_key = "train/ray_dist_loss"
+                        logger_n_match_key = "train/n_match"
+                        logger_ray_dist_weight_key = "train/ray_dist_loss_weight"
+
+                        scalars_to_log[logger_ray_dist_weight_key] = args.ray_dist_loss_weight
+                        scalars_to_log[logger_ray_dist_key] = ray_dist_loss_ret.item()
+                        scalars_to_log[logger_n_match_key] = n_match
+
+                        train_loss = train_loss + args.ray_dist_loss_weight * ray_dist_loss_ret
+
+
+                train_loss.backward()
+                optimizer.step()
+
+        else:
+            train_loss.backward()
+            optimizer.step()
 
         if global_step % 2000 == 1:
             scalar_dict, image_dict = camera_model.log_noises(
@@ -1007,7 +1084,7 @@ def train():
                 gt_extrinsic[i_train],
             )
             scalars_to_log.update(scalar_dict)
-            scalars_to_log.update(image_dict)
+            images_to_log.update(image_dict)
 
         # update learning rate
         decay_rate = 0.1
@@ -1283,35 +1360,21 @@ def train():
     os.makedirs(train_savedir, exist_ok=True)
 
     with torch.no_grad():
-        if camera_model is None:
-            # render_kwargs_test
-            rgbs, disps = render_path(
-                render_poses=noisy_extrinsic[i_train],
-                noisy_extrinsic=noisy_extrinsic[i_train],
-                hwf=hwf,
-                chunk=args.chunk,
-                render_kwargs=render_kwargs_train,
-                mode="train",
-                gt_imgs=images[i_train],
-                savedir=train_savedir,
-                args=args,
-            )
-        else:
-            hwf_removed_focal = (hwf[0], hwf[1], None)
-            rgbs, disps = render_path(
-                render_poses=camera_model.get_extrinsic(),
-                noisy_extrinsic=camera_model.get_extrinsic(),
-                hwf=hwf_removed_focal,
-                chunk=args.chunk,
-                render_kwargs=render_kwargs_train,
-                mode="train",
-                gt_imgs=images[i_train],
-                savedir=train_savedir,
-                camera_model=camera_model,
-                args=args,
-                i_map=i_train
-            )
-
+        hwf_removed_focal = (hwf[0], hwf[1], None)
+        rgbs, disps = render_path(
+            render_poses=camera_model.get_extrinsic(),
+            noisy_extrinsic=camera_model.get_extrinsic(),
+            hwf=hwf_removed_focal,
+            chunk=args.chunk,
+            render_kwargs=render_kwargs_train,
+            mode="train",
+            gt_imgs=images[i_train],
+            savedir=train_savedir,
+            camera_model=camera_model,
+            args=args,
+            i_map=i_train
+        )
+        
     train_psnr_list, train_ssim_list, train_lpips_list = [], [], []
     for idx in range(len(rgbs)):
         viewing_rgbs, viewing_disps = rgbs[idx], disps[idx]
