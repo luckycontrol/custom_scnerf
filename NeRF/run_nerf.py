@@ -1223,6 +1223,7 @@ def train():
             print("VAL PSNR {}: {}".format(img_i, val_psnr.item()))
 
             eval_prd = projected_ray_distance_evaluation(
+                part=part,
                 images=images,
                 index_list=i_val,
                 args=args,
@@ -1257,6 +1258,7 @@ def train():
     i_train = [0]
 
     train_prd = projected_ray_distance_evaluation(
+        part=part,
         images=images,
         index_list=i_train,
         args=args,
