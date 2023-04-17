@@ -236,11 +236,7 @@ def train():
 
     for layer in render_kwargs_train["network_fn"].views_linears:
         layer.reset_parameters()
-
-    render_kwargs_train["network_fn"].
-
-    return
-
+        
     global_step = start
 
     bds_dict = {
@@ -916,17 +912,22 @@ def train():
     # nerfmm - 카메라 파라미터 학습 종료
     print("Camera Parameter Training Done")
 
+    # nerfmm - 학습 횟수 설정
     N_repr_iters = args.N_repr_iters if args.N_repr_iters is not None else 200001
     print(f"N_repr - iters: {N_repr_iters}")
 
-    # Reset model's parameters
+    # nerfmm - 모델 파라미터 초기화
     print("---Reset model's parameters---")
     render_kwargs_train['network_fn'].reset()
     render_kwargs_train['network_fine'].reset()
 
     render_kwargs_train['network_fine'].log()
 
-    return
+    # nerfmm - 카메라 파라미터 고정
+    camera_model.intrinsics_noise.requires_grad_(False)
+    camera_model.extrinsics_noise.requires_grad_(False)
+    camera_model.ray_o_noise.requires_grad_(False)
+    camera_model.ray_d_noise.requires_grad_(False)
 
     # Start Training
     start = 0
