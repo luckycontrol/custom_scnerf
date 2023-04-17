@@ -678,47 +678,26 @@ def train():
                 os.makedirs(testsavedir, exist_ok=True)
                 print('test poses shape', noisy_extrinsic[i_test].shape)
 
-                if camera_model is None:
-                    eval_prd = projected_ray_distance_evaluation(
-                        images=images,
-                        index_list=i_test,
-                        args=args,
-                        ray_fun=get_rays_kps_no_camera,
-                        ray_fun_gt=get_rays_kps_no_camera,
-                        part=part,
-                        H=H,
-                        W=W,
-                        mode="test",
-                        matcher=matcher,
-                        gt_intrinsic=gt_intrinsic,
-                        gt_extrinsic=gt_extrinsic,
-                        method="NeRF",
-                        device=device,
-                        intrinsic=gt_intrinsic,
-                        extrinsic=gt_extrinsic
-                    )
-
-                else:
-                    eval_prd = projected_ray_distance_evaluation(
-                        images=images,
-                        index_list=i_test,
-                        args=args,
-                        ray_fun=get_rays_kps_use_camera,
-                        ray_fun_gt=get_rays_kps_no_camera,
-                        part=part,
-                        H=H,
-                        W=W,
-                        mode="test",
-                        matcher=matcher,
-                        gt_intrinsic=gt_intrinsic,
-                        gt_extrinsic=gt_extrinsic,
-                        method="NeRF",
-                        device=device,
-                        camera_model=camera_model,
-                        intrinsic=gt_intrinsic,
-                        extrinsic=gt_extrinsic
-                    )
-
+                eval_prd = projected_ray_distance_evaluation(
+                    images=images,
+                    index_list=i_test,
+                    args=args,
+                    ray_fun=get_rays_kps_use_camera,
+                    ray_fun_gt=get_rays_kps_no_camera,
+                    part=part,
+                    H=H,
+                    W=W,
+                    mode="test",
+                    matcher=matcher,
+                    gt_intrinsic=gt_intrinsic,
+                    gt_extrinsic=gt_extrinsic,
+                    method="NeRF",
+                    device=device,
+                    camera_model=camera_model,
+                    intrinsic=gt_intrinsic,
+                    extrinsic=gt_extrinsic
+                )
+                    
                 scalars_to_log["test/proj_ray_dist_loss"] = eval_prd
                 print(f"Test projection ray distance loss {eval_prd}")
 
@@ -727,32 +706,19 @@ def train():
                     # transform_align: 4 X 4
                     # gt_test: N X 4 X 4
 
-                    if camera_model is None:
-                        _hwf = (hwf[0], hwf[1], None)
-                        rgbs, disps = render_path(
-                            gt_extrinsic[i_test],
-                            _hwf, args.chunk, render_kwargs_test,
-                            gt_imgs=images[i_test],
-                            savedir=testsavedir, mode="test",
-                            args=args, gt_intrinsic=gt_intrinsic,
-                            gt_extrinsic=gt_extrinsic,
-                            i_map=i_test
-                        )
-
-                    else:
-                        # Convert the focal to None (Not needed)
-                        _hwf = (hwf[0], hwf[1], None)
-                        rgbs, disps = render_path(
-                            gt_transformed_pose_test,
-                            _hwf, args.chunk, render_kwargs_test,
-                            gt_imgs=images[i_test],
-                            savedir=testsavedir, mode="test",
-                            camera_model=camera_model, args=args,
-                            gt_intrinsic=gt_intrinsic,
-                            gt_extrinsic=gt_extrinsic,
-                            i_map=i_test,
-                            transform_align=gt_transformed_pose_test
-                        )
+                    # Convert the focal to None (Not needed)
+                    _hwf = (hwf[0], hwf[1], None)
+                    rgbs, disps = render_path(
+                        gt_transformed_pose_test,
+                        _hwf, args.chunk, render_kwargs_test,
+                        gt_imgs=images[i_test],
+                        savedir=testsavedir, mode="test",
+                        camera_model=camera_model, args=args,
+                        gt_intrinsic=gt_intrinsic,
+                        gt_extrinsic=gt_extrinsic,
+                        i_map=i_test,
+                        transform_align=gt_transformed_pose_test
+                    )   
 
                 test_psnr_list, test_ssim_list, test_lpips_list = [], [], []
 
@@ -930,14 +896,24 @@ def train():
         args, part, pts_progress, dir_progress, noisy_focal, noisy_train_poses, H, W, mode="train", device=device
     )
 
+    render_kwargs_train.update(bds_dict)
+    render_kwargs_test.update(bds_dict)
+
     # nerfmm - 카메라 파라미터 고정
     camera_model.intrinsics_noise.requires_grad_(False)
     camera_model.extrinsics_noise.requires_grad_(False)
     camera_model.ray_o_noise.requires_grad_(False)
     camera_model.ray_d_noise.requires_grad_(False)
 
+    if use_batching:
+        shuffled_ray_idx = np.arange(len(i_train) * H * W)
+        np.random.shuffle(shuffled_ray_idx)
+        shuffled_image_idx = shuffled_ray_idx // (H * W)
+
+        i_batch = 0
+
     # nerfmm - 학습 시작
-    start = 0
+    start = 1
     global_step = start
 
     for i in trange(start, N_repr_iters):
@@ -945,39 +921,82 @@ def train():
         scalars_to_log = {}
         images_to_log = {}
 
-        img_i = np.random.choice(i_train)
-        img_i_train_idx = np.where(i_train == img_i)[0][0]
-        target = images[img_i]
-        noisy_pose = noisy_extrinsic[img_i, :3, :4]
+        if use_batching and not camera_model is None:
+            ### shuffled_image_idx = shuffled_ray_idx // (H * W)
 
-        coords = torch.stack(
-            torch.meshgrid(
-                torch.linspace(0, W - 1, W),
-                torch.linspace(0, H - 1, H),
-            ),
-            -1
-        )
+            image_idx_curr_step = shuffled_image_idx[i_batch:i_batch + N_rand]
+            h_list = shuffled_ray_idx[i_batch:i_batch + N_rand] % (H * W) // W
+            w_list = shuffled_ray_idx[i_batch:i_batch + N_rand] % (H * W) % W
 
-        coords = torch.reshape(coords, [-1, 2])
-        assert coords[:, 0].max() < W and coords[:, 1].max() < H
-        select_inds = np.random.choice(
-            coords.shape[0],
-            size=[N_rand],
-            replace=False
-        )
-        select_coords = coords[select_inds].long()
+            select_coords = np.stack([w_list, h_list], -1)
+            assert select_coords[:, 0].max() < W
+            assert select_coords[:, 1].max() < H
 
-        rays_o, rays_d = get_rays_kps_use_camera(
-            part,
-            H=H,
-            W=W,
-            camera_model=camera_model,
-            idx_in_camera_param=img_i_train_idx,
-            kps_list=select_coords
-        )
+            image_idx_curr_step_tensor = torch.from_numpy(
+                image_idx_curr_step
+            ).cuda()
+            kps_list = torch.from_numpy(select_coords).cuda()
 
-        batch_rays = torch.stack([rays_o, rays_d], 0)
-        target_s = target[select_coords[:, 1], select_coords[:, 0]]
+            rays_o, rays_d = get_rays_kps_use_camera(
+                part,
+                H=H,
+                W=W,
+                camera_model=camera_model,
+                idx_in_camera_param=image_idx_curr_step_tensor,
+                kps_list=kps_list
+            )
+
+            batch_rays = torch.stack([rays_o, rays_d])
+            index_train = i_train[
+                shuffled_image_idx[i_batch: i_batch + N_rand]
+            ]
+            target_s = images[index_train, h_list, w_list]
+
+            img_i = np.random.choice(index_train)
+            img_i_train_idx = np.where(i_train == img_i)[0][0]
+
+            i_batch += N_rand
+            if i_batch >= len(shuffled_ray_idx):
+                print("Shuffle data after an epoch!")
+                np.random.shuffle(shuffled_ray_idx)
+                shuffled_image_idx = shuffled_ray_idx // (H * W)
+                i_batch = 0
+        
+        else:
+            # Random from one image
+            img_i = np.random.choice(i_train)
+            img_i_train_idx = np.where(i_train == img_i)[0][0]
+            target = images[img_i]
+            noisy_pose = noisy_extrinsic[img_i, :3, :4]
+
+            coords = torch.stack(
+                torch.meshgrid(
+                    torch.linspace(0, W - 1, W),
+                    torch.linspace(0, H - 1, H),
+                ),
+                -1
+            )
+
+            coords = torch.reshape(coords, [-1, 2])
+            assert coords[:, 0].max() < W and coords[:, 1].max() < H
+            select_inds = np.random.choice(
+                coords.shape[0],
+                size=[N_rand],
+                replace=False
+            )
+            select_coords = coords[select_inds].long()
+
+            rays_o, rays_d = get_rays_kps_use_camera(
+                part,
+                H=H,
+                W=W,
+                camera_model=camera_model,
+                idx_in_camera_param=img_i_train_idx,
+                kps_list=select_coords
+            )
+
+            batch_rays = torch.stack([rays_o, rays_d], 0)
+            target_s = target[select_coords[:, 1], select_coords[:, 0]]
 
         rgb, disp, acc, extras = render(
             H=H, W=W, chunk=args.chunk, rays=batch_rays,
@@ -1146,6 +1165,7 @@ def train():
                 print('test poses shape', noisy_extrinsic[i_test].shape)
 
                 eval_prd = projected_ray_distance_evaluation(
+                    part=part,
                     images=images,
                     index_list=i_test,
                     args=args,
@@ -1171,33 +1191,20 @@ def train():
 
                     # transform_align: 4 X 4
                     # gt_test: N X 4 X 4
-
-                    if camera_model is None:
-                        _hwf = (hwf[0], hwf[1], None)
-                        rgbs, disps = render_path(
-                            gt_extrinsic[i_test],
-                            _hwf, args.chunk, render_kwargs_test,
-                            gt_imgs=images[i_test],
-                            savedir=testsavedir, mode="test",
-                            args=args, gt_intrinsic=gt_intrinsic,
-                            gt_extrinsic=gt_extrinsic,
-                            i_map=i_test
-                        )
-
-                    else:
-                        # Convert the focal to None (Not needed)
-                        _hwf = (hwf[0], hwf[1], None)
-                        rgbs, disps = render_path(
-                            gt_transformed_pose_test,
-                            _hwf, args.chunk, render_kwargs_test,
-                            gt_imgs=images[i_test],
-                            savedir=testsavedir, mode="test",
-                            camera_model=camera_model, args=args,
-                            gt_intrinsic=gt_intrinsic,
-                            gt_extrinsic=gt_extrinsic,
-                            i_map=i_test,
-                            transform_align=gt_transformed_pose_test
-                        )
+                    
+                    # Convert the focal to None (Not needed)
+                    _hwf = (hwf[0], hwf[1], None)
+                    rgbs, disps = render_path(
+                        gt_transformed_pose_test,
+                        _hwf, args.chunk, render_kwargs_test,
+                        gt_imgs=images[i_test],
+                        savedir=testsavedir, mode="test",
+                        camera_model=camera_model, args=args,
+                        gt_intrinsic=gt_intrinsic,
+                        gt_extrinsic=gt_extrinsic,
+                        i_map=i_test,
+                        transform_align=gt_transformed_pose_test
+                    )
 
                 test_psnr_list, test_ssim_list, test_lpips_list = [], [], []
 
@@ -1329,6 +1336,7 @@ def train():
 
         global_step += 1
 
+    print("Training Finished")
     print("Starts Train Rendering")
 
     train_log_at_end = {}

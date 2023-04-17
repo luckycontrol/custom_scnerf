@@ -33,7 +33,7 @@ def config_parser():
                         help='number of rays processed in parallel, decrease if running out of memory')
     parser.add_argument("--netchunk_per_gpu", type=int, default=1024 * 64 * 4,
                         help='number of pts sent through network in parallel, decrease if running out of memory')
-    parser.add_argument("--no_batching", action='store_true',
+    parser.add_argument("--no_batching", type=bool, default=True,
                         help='only take random rays from 1 image at a time')
     parser.add_argument("--no_reload", action='store_true',
                         help='do not reload weights from saved ckpt')
@@ -56,7 +56,7 @@ def config_parser():
                         help='number of iterations')
     
     # nerfmm - 3차원 학습 이터레이션: 200000번
-    parser.add_argument("--N_repr_iters", type=int, default=1000,
+    parser.add_argument("--N_repr_iters", type=int, default=100,
                         help='number of iterations')
 
     parser.add_argument("--N_importance", type=int, default=128,
@@ -118,11 +118,11 @@ def config_parser():
     # logging/saving options
     parser.add_argument("--i_print", type=int, default=100,
                         help='frequency of console printout and metric loggin')
-    parser.add_argument("--i_img", type=int, default=500,
+    parser.add_argument("--i_img", type=int, default=10,
                         help='frequency of tensorboard image logging')
-    parser.add_argument("--i_weights", type=int, default=10000,
+    parser.add_argument("--i_weights", type=int, default=10,
                         help='frequency of weight ckpt saving')
-    parser.add_argument("--i_testset", type=int, default=50000,
+    parser.add_argument("--i_testset", type=int, default=10,
                         help='frequency of testset saving')
     parser.add_argument("--i_video", type=int, default=50000,
                         help='frequency of render_poses video saving')
