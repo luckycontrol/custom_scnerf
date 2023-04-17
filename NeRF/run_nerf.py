@@ -386,6 +386,7 @@ def train():
             kps_list = torch.from_numpy(select_coords).cuda()
 
             rays_o, rays_d = get_rays_kps_use_camera(
+                part,
                 H=H,
                 W=W,
                 camera_model=camera_model,
@@ -468,6 +469,7 @@ def train():
 
                 else:
                     rays_o, rays_d = get_rays_kps_use_camera(
+                        part,
                         H=H,
                         W=W,
                         camera_model=camera_model,
@@ -536,6 +538,7 @@ def train():
                         kps0_list, kps1_list = result
 
                         rays_i = get_rays_kps_use_camera(
+                            part,
                             H=H,
                             W=W,
                             camera_model=camera_model,
@@ -543,6 +546,7 @@ def train():
                             kps_list=kps0_list
                         )
                         rays_j = get_rays_kps_use_camera(
+                            part,
                             H=H,
                             W=W,
                             camera_model=camera_model,
@@ -681,6 +685,7 @@ def train():
                         args=args,
                         ray_fun=get_rays_kps_no_camera,
                         ray_fun_gt=get_rays_kps_no_camera,
+                        part=part,
                         H=H,
                         W=W,
                         mode="test",
@@ -700,6 +705,7 @@ def train():
                         args=args,
                         ray_fun=get_rays_kps_use_camera,
                         ray_fun_gt=get_rays_kps_no_camera,
+                        part=part,
                         H=H,
                         W=W,
                         mode="test",
@@ -862,6 +868,7 @@ def train():
                     args=args,
                     ray_fun=get_rays_kps_no_camera,
                     ray_fun_gt=get_rays_kps_no_camera,
+                    part=part,
                     H=H,
                     W=W,
                     mode="val",
@@ -881,6 +888,7 @@ def train():
                     args=args,
                     ray_fun=get_rays_kps_use_camera,
                     ray_fun_gt=get_rays_kps_no_camera,
+                    part=part,
                     H=H,
                     W=W,
                     mode="val",
@@ -933,11 +941,6 @@ def train():
     global_step = start
 
     for i in trange(start, N_repr_iters):
-        camera_model.intrinsics_noise.requires_grad_(False)
-        camera_model.extrinsics_noise.requires_grad_(False)
-        camera_model.ray_o_noise.requires_grad_(False)
-        camera_model.ray_d_noise.requires_grad_(False)
-
         time0 = time.time()
         scalars_to_log = {}
         images_to_log = {}
@@ -965,9 +968,11 @@ def train():
         select_coords = coords[select_inds].long()
 
         rays_o, rays_d = get_rays_kps_use_camera(
+            part,
             H=H,
             W=W,
             camera_model=camera_model,
+            idx_in_camera_param=img_i_train_idx,
             kps_list=select_coords
         )
 
@@ -996,6 +1001,14 @@ def train():
         train_loss.backward()
         optimizer.step()
 
+        if global_step % 2000 == 1:
+            scalar_dict, image_dict = camera_model.log_noises(
+                gt_intrinsic,
+                gt_extrinsic[i_train],
+            )
+            scalars_to_log.update(scalar_dict)
+            scalars_to_log.update(image_dict)
+
         # update learning rate
         decay_rate = 0.1
         decay_steps = args.lrate_decay * 1000
@@ -1006,6 +1019,7 @@ def train():
 
         dt = time.time() - time0
 
+        # Rest is logging
         if i % args.i_weights == 0:
             path = os.path.join(basedir, expname, 'volume_repr_{:06d}.tar'.format(i))
             save_dict = {
@@ -1040,44 +1054,24 @@ def train():
                 os.makedirs(testsavedir, exist_ok=True)
                 print('test poses shape', noisy_extrinsic[i_test].shape)
 
-                if camera_model is None:
-                    eval_prd = projected_ray_distance_evaluation(
-                        images=images,
-                        index_list=i_test,
-                        args=args,
-                        ray_fun=get_rays_kps_no_camera,
-                        ray_fun_gt=get_rays_kps_no_camera,
-                        H=H,
-                        W=W,
-                        mode="test",
-                        matcher=matcher,
-                        gt_intrinsic=gt_intrinsic,
-                        gt_extrinsic=gt_extrinsic,
-                        method="NeRF",
-                        device=device,
-                        intrinsic=gt_intrinsic,
-                        extrinsic=gt_extrinsic
-                    )
-
-                else:
-                    eval_prd = projected_ray_distance_evaluation(
-                        images=images,
-                        index_list=i_test,
-                        args=args,
-                        ray_fun=get_rays_kps_use_camera,
-                        ray_fun_gt=get_rays_kps_no_camera,
-                        H=H,
-                        W=W,
-                        mode="test",
-                        matcher=matcher,
-                        gt_intrinsic=gt_intrinsic,
-                        gt_extrinsic=gt_extrinsic,
-                        method="NeRF",
-                        device=device,
-                        camera_model=camera_model,
-                        intrinsic=gt_intrinsic,
-                        extrinsic=gt_extrinsic
-                    )
+                eval_prd = projected_ray_distance_evaluation(
+                    images=images,
+                    index_list=i_test,
+                    args=args,
+                    ray_fun=get_rays_kps_use_camera,
+                    ray_fun_gt=get_rays_kps_no_camera,
+                    H=H,
+                    W=W,
+                    mode="test",
+                    matcher=matcher,
+                    gt_intrinsic=gt_intrinsic,
+                    gt_extrinsic=gt_extrinsic,
+                    method="NeRF",
+                    device=device,
+                    camera_model=camera_model,
+                    intrinsic=gt_intrinsic,
+                    extrinsic=gt_extrinsic
+                )                    
 
                 scalars_to_log["test/proj_ray_dist_loss"] = eval_prd
                 print(f"Test projection ray distance loss {eval_prd}")
@@ -1214,43 +1208,23 @@ def train():
 
             print("VAL PSNR {}: {}".format(img_i, val_psnr.item()))
 
-            if camera_model is None:
-                eval_prd = projected_ray_distance_evaluation(
-                    images=images,
-                    index_list=i_val,
-                    args=args,
-                    ray_fun=get_rays_kps_no_camera,
-                    ray_fun_gt=get_rays_kps_no_camera,
-                    H=H,
-                    W=W,
-                    mode="val",
-                    matcher=matcher,
-                    gt_intrinsic=gt_intrinsic,
-                    gt_extrinsic=gt_extrinsic,
-                    method="NeRF",
-                    device=device,
-                    intrinsic=gt_intrinsic,
-                    extrinsic=gt_extrinsic,
-                )
-
-            else:
-                eval_prd = projected_ray_distance_evaluation(
-                    images=images,
-                    index_list=i_val,
-                    args=args,
-                    ray_fun=get_rays_kps_use_camera,
-                    ray_fun_gt=get_rays_kps_no_camera,
-                    H=H,
-                    W=W,
-                    mode="val",
-                    matcher=matcher,
-                    gt_intrinsic=gt_intrinsic,
-                    gt_extrinsic=gt_extrinsic,
-                    method="NeRF",
-                    device=device,
-                    camera_model=camera_model
-                )
-
+            eval_prd = projected_ray_distance_evaluation(
+                images=images,
+                index_list=i_val,
+                args=args,
+                ray_fun=get_rays_kps_use_camera,
+                ray_fun_gt=get_rays_kps_no_camera,
+                H=H,
+                W=W,
+                mode="val",
+                matcher=matcher,
+                gt_intrinsic=gt_intrinsic,
+                gt_extrinsic=gt_extrinsic,
+                method="NeRF",
+                device=device,
+                camera_model=camera_model
+            )
+                
             scalars_to_log["val/proj_ray_dist_loss"] = eval_prd
 
             print("Validation PRD : {}".format(eval_prd))
@@ -1268,45 +1242,24 @@ def train():
     train_log_at_end = {}
     i_train = [0]
 
-    if camera_model is None:
-        train_prd = projected_ray_distance_evaluation(
-            images=images,
-            index_list=i_train,
-            args=args,
-            ray_fun=get_rays_kps_no_camera,
-            ray_fun_gt=get_rays_kps_no_camera,
-            H=H,
-            W=W,
-            mode="train",
-            matcher=matcher,
-            gt_intrinsic=gt_intrinsic,
-            gt_extrinsic=gt_extrinsic,
-            method="NeRF",
-            device=device,
-            intrinsic=noisy_initial_intrinsic,
-            extrinsic=noisy_extrinsic,
-        )
-        train_log_at_end["train_last/PRD"] = train_prd
-
-    else:
-        train_prd = projected_ray_distance_evaluation(
-            images=images,
-            index_list=i_train,
-            args=args,
-            ray_fun=get_rays_kps_use_camera,
-            ray_fun_gt=get_rays_kps_no_camera,
-            H=H,
-            W=W,
-            mode="train",
-            matcher=matcher,
-            gt_intrinsic=gt_intrinsic,
-            gt_extrinsic=gt_extrinsic,
-            method="NeRF",
-            device=device,
-            camera_model=camera_model,
-            i_map=i_train
-        )
-        train_log_at_end["train_last/PRD"] = train_prd
+    train_prd = projected_ray_distance_evaluation(
+        images=images,
+        index_list=i_train,
+        args=args,
+        ray_fun=get_rays_kps_use_camera,
+        ray_fun_gt=get_rays_kps_no_camera,
+        H=H,
+        W=W,
+        mode="train",
+        matcher=matcher,
+        gt_intrinsic=gt_intrinsic,
+        gt_extrinsic=gt_extrinsic,
+        method="NeRF",
+        device=device,
+        camera_model=camera_model,
+        i_map=i_train
+    )
+    train_log_at_end["train_last/PRD"] = train_prd        
 
     train_savedir = os.path.join(
         basedir, expname, 'trainset'

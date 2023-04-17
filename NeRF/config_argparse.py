@@ -52,11 +52,11 @@ def config_parser():
                         help='number of coarse samples per ray')
     
     # nerfmm - 카메라 파라미터 이터레이션: 5000번
-    parser.add_argument("--N_iters", type=int, default=50001,
+    parser.add_argument("--N_iters", type=int, default=500,
                         help='number of iterations')
     
     # nerfmm - 3차원 학습 이터레이션: 200000번
-    parser.add_argument("--N_repr_iters", type=int, default=200001,
+    parser.add_argument("--N_repr_iters", type=int, default=1000,
                         help='number of iterations')
 
     parser.add_argument("--N_importance", type=int, default=128,
