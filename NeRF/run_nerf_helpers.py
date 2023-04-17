@@ -23,6 +23,7 @@ class DenseLayer(nn.Linear):
 # Positional encoding (section 5.1)
 class Embedder:
     def __init__(self, part, weight=None, **kwargs):
+        self.part = part
         self.kwargs = kwargs
         self.weights = weight
         self.create_embedding_fn()
@@ -44,7 +45,7 @@ class Embedder:
             freq_bands = torch.linspace(2.**0., 2.**max_freq, steps=N_freqs)
         
         # 3차원 공간 학습을 위한 코드
-        if part == "render":
+        if self.part == "render":
             for freq in freq_bands:
                 for p_fn in self.kwargs['periodic_fns']:
                     embed_fns.append(lambda x, p_fn=p_fn, freq=freq : p_fn(x * freq))
