@@ -929,7 +929,7 @@ def train():
     camera_model.ray_o_noise.requires_grad_(False)
     camera_model.ray_d_noise.requires_grad_(False)
 
-    # Start Training
+    # nerfmm - 학습 시작
     start = 0
     global_step = start
 
