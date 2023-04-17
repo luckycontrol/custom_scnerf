@@ -174,7 +174,8 @@ def train():
         assert False,"Invalid Dataset Selected"
         return
     
-    progress = torch.nn.Parameter(torch.tensor(0.))
+    pts_progress = torch.nn.Parameter(torch.tensor(0.))
+    dir_progress = torch.nn.Parameter(torch.tensor(0.))
 
     noisy_train_poses = noisy_extrinsic[i_train]
 
@@ -228,14 +229,8 @@ def train():
         render_kwargs_train, render_kwargs_test, start,
         grad_vars, optimizer, camera_model
     ) = create_nerf(
-        args, progress, noisy_focal, noisy_train_poses, H, W, mode="train", device=device
+        args, pts_progress, dir_progress, noisy_focal, noisy_train_poses, H, W, mode="train", device=device
     )
-
-    for layer in render_kwargs_train["network_fn"].pts_linears:
-        layer.reset_parameters()
-
-    for layer in render_kwargs_train["network_fn"].views_linears:
-        layer.reset_parameters()
         
     global_step = start
 
@@ -618,7 +613,6 @@ def train():
             )
             scalars_to_log.update(scalar_dict)
             images_to_log.update(image_dict)
-            render_kwargs_train["network_fine"].log()
 
         # NOTE: IMPORTANT!
         ###   update learning rate   ###
