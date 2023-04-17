@@ -224,7 +224,7 @@ def train():
         with open(f, 'w') as file:
             file.write(open(args.config, 'r').read())
 
-    part = args.part if args.part != '' else 'camera'
+    part = args.camera_part if args.camera_part != '' else 'camera'
     # nerfmm - 모델 생성 for 카메라 파트
     (
         render_kwargs_train, render_kwargs_test, start,
@@ -921,7 +921,7 @@ def train():
 
     # nerfmm - 모델 파라미터 초기화
     print("---Reset model's parameters---")
-    part = args.part if args.part != '' else 'render'
+    part = args.render_part if args.render_part != '' else 'render'
     # nerfmm - 모델 생성 for 렌더링 파트
     (
         render_kwargs_train, render_kwargs_test, start,
