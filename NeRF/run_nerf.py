@@ -224,12 +224,13 @@ def train():
         with open(f, 'w') as file:
             file.write(open(args.config, 'r').read())
 
-    # Create nerf model
+    part = args.part if args.part != '' else 'camera'
+    # nerfmm - 모델 생성 for 카메라 파트
     (
         render_kwargs_train, render_kwargs_test, start,
         grad_vars, optimizer, camera_model
     ) = create_nerf(
-        args, pts_progress, dir_progress, noisy_focal, noisy_train_poses, H, W, mode="train", device=device
+        args, part, pts_progress, dir_progress, noisy_focal, noisy_train_poses, H, W, mode="train", device=device
     )
         
     global_step = start
@@ -912,10 +913,14 @@ def train():
 
     # nerfmm - 모델 파라미터 초기화
     print("---Reset model's parameters---")
-    render_kwargs_train['network_fn'].reset()
-    render_kwargs_train['network_fine'].reset()
-
-    render_kwargs_train['network_fine'].log()
+    part = args.part if args.part != '' else 'render'
+    # nerfmm - 모델 생성 for 렌더링 파트
+    (
+        render_kwargs_train, render_kwargs_test, start,
+        grad_vars, optimizer, camera_model
+    ) = create_nerf(
+        args, part, pts_progress, dir_progress, noisy_focal, noisy_train_poses, H, W, mode="train", device=device
+    )
 
     # nerfmm - 카메라 파라미터 고정
     camera_model.intrinsics_noise.requires_grad_(False)

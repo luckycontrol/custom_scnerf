@@ -40,6 +40,13 @@ def config_parser():
     parser.add_argument("--ft_path", type=str, default=None,
                         help='specific weights npy file to reload for coarse network')
 
+    # nerfmm - part 변수 추가
+    parser.add_argument("--camera_part", type=str, default="camera",
+                        help='camera part')
+
+    parser.add_argument("--render_part", type=str, default="render",
+                        help='render part')
+
     # rendering options
     parser.add_argument("--N_samples", type=int, default=64,
                         help='number of coarse samples per ray')

@@ -32,19 +32,20 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, netchunk=1024 * 64
     return outputs
 
 def create_nerf(
-    args, pts_progress, dir_progress, noisy_focal, noisy_poses, H, W, mode="train", device="cuda"
+    args, part, pts_progress, dir_progress, noisy_focal, noisy_poses, H, W, mode="train", device="cuda"
 ):
     """Instantiate NeRF's MLP model."""
 
     camera_model = None
 
-    embed_fn, input_ch = get_embedder(device, pts_progress, args.multires, args.i_embed)
+    embed_fn, input_ch = get_embedder(device, part, pts_progress, args.multires, args.i_embed)
 
     input_ch_views = 0
     embeddirs_fn = None
     if args.use_viewdirs:
         embeddirs_fn, input_ch_views = get_embedder(
             device,
+            part,
             dir_progress,
             args.multires_views, 
             args.i_embed
