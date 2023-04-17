@@ -1042,6 +1042,20 @@ def train():
         test_render = (i % args.i_testset == 0 and i > 0) or args.debug
         val_render = (i % args.i_img == 0) or args.debug
 
+        if test_render:
+            gt_transformed_pose_test = align_ate_c2b_use_a2b(
+                gt_extrinsic[i_train], 
+                camera_model.get_extrinsic().detach(),
+                gt_extrinsic[i_test]
+            )
+
+        if val_render:
+            gt_transformed_pose_val = align_ate_c2b_use_a2b(
+                gt_extrinsic[i_train], 
+                camera_model.get_extrinsic().detach(),
+                gt_extrinsic[i_val]
+            )
+
         # Test Rendering
         if test_render:
         # if False:
