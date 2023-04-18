@@ -116,9 +116,7 @@ def get_rays_kps_use_camera(
          torch.ones_like(kps_list[:, 0])],
         dim=-1).float()
 
-    if part == "camera":
-       idx_in_camera_param = idx_in_camera_param.long()
-
+    idx_in_camera_param = idx_in_camera_param.long()
 
     intrinsics_inv = torch.inverse(camera_model.get_intrinsic()[:3, :3])
     extrinsic = camera_model.get_extrinsic()[idx_in_camera_param] \

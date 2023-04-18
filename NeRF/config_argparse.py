@@ -35,9 +35,9 @@ def config_parser():
                         help='number of pts sent through network in parallel, decrease if running out of memory')
     parser.add_argument("--no_batching", type=bool, default=False,
                         help='only take random rays from 1 image at a time')
-    parser.add_argument("--no_reload", action='store_true',
+    parser.add_argument("--no_reload", type=bool, default=True,
                         help='do not reload weights from saved ckpt')
-    parser.add_argument("--ft_path", type=str, default=None,
+    parser.add_argument("--ft_path", type=str, default="lego_4dir_use_viewdir_nerfmm_DESKTOP-DBF6QA9_2023_04_18_12_43_44",
                         help='specific weights npy file to reload for coarse network')
 
     # nerfmm - part 변수 추가
@@ -52,7 +52,7 @@ def config_parser():
                         help='number of coarse samples per ray')
     
     # nerfmm - 카메라 파라미터 이터레이션: 50000번
-    parser.add_argument("--N_iters", type=int, default=50001,
+    parser.add_argument("--N_iters", type=int, default=1000,
                         help='number of iterations')
     
     # nerfmm - 3차원 학습 이터레이션: 200000번
