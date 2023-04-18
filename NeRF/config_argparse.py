@@ -118,11 +118,11 @@ def config_parser():
     # logging/saving options
     parser.add_argument("--i_print", type=int, default=100,
                         help='frequency of console printout and metric loggin')
-    parser.add_argument("--i_img", type=int, default=10,
+    parser.add_argument("--i_img", type=int, default=500,
                         help='frequency of tensorboard image logging')
-    parser.add_argument("--i_weights", type=int, default=10,
+    parser.add_argument("--i_weights", type=int, default=10000,
                         help='frequency of weight ckpt saving')
-    parser.add_argument("--i_testset", type=int, default=10,
+    parser.add_argument("--i_testset", type=int, default=50000,
                         help='frequency of testset saving')
     parser.add_argument("--i_video", type=int, default=50000,
                         help='frequency of render_poses video saving')
