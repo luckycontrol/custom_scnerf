@@ -33,7 +33,7 @@ def config_parser():
                         help='number of rays processed in parallel, decrease if running out of memory')
     parser.add_argument("--netchunk_per_gpu", type=int, default=1024 * 64 * 4,
                         help='number of pts sent through network in parallel, decrease if running out of memory')
-    parser.add_argument("--no_batching", type=bool, default=True,
+    parser.add_argument("--no_batching", type=bool, default=False,
                         help='only take random rays from 1 image at a time')
     parser.add_argument("--no_reload", action='store_true',
                         help='do not reload weights from saved ckpt')
@@ -51,12 +51,12 @@ def config_parser():
     parser.add_argument("--N_samples", type=int, default=64,
                         help='number of coarse samples per ray')
     
-    # nerfmm - 카메라 파라미터 이터레이션: 5000번
-    parser.add_argument("--N_iters", type=int, default=100,
+    # nerfmm - 카메라 파라미터 이터레이션: 50000번
+    parser.add_argument("--N_iters", type=int, default=50001,
                         help='number of iterations')
     
     # nerfmm - 3차원 학습 이터레이션: 200000번
-    parser.add_argument("--N_repr_iters", type=int, default=100,
+    parser.add_argument("--N_repr_iters", type=int, default=200001,
                         help='number of iterations')
 
     parser.add_argument("--N_importance", type=int, default=128,

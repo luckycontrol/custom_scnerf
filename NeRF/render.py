@@ -42,9 +42,6 @@ def render(
         assert gt_intrinsic is None
         assert gt_extrinsic is None
 
-        print(f'i_map: {i_map}')
-        print(f'image_idx: {image_idx}')
-
         idx_in_camera_param=np.where(i_map==image_idx)[0][0]
         rays_o, rays_d = get_rays_full_image_use_camera(
             H=H,
