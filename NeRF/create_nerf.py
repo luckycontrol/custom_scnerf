@@ -56,6 +56,8 @@ def create_nerf(
                  output_ch=output_ch, skips=skips, 
                  input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs)
     #model = nn.DataParallel(model).to(device)
+    model = model.to(device)
+
     grad_vars = []
     grad_vars.append(pts_progress)
     grad_vars.append(dir_progress)
@@ -66,7 +68,10 @@ def create_nerf(
         model_fine = NeRF(D=args.netdepth_fine, W=args.netwidth_fine,
             input_ch=input_ch, output_ch=output_ch, skips=skips,
             input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs)
+
         #model_fine = nn.DataParallel(model_fine).to(device)
+        model_fine = model_fine.to(device)
+
         grad_vars += list(model_fine.parameters())
 
     network_query_fn = lambda inputs, viewdirs, network_fn: run_network(

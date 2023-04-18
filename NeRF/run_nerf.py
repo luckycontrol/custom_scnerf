@@ -174,8 +174,12 @@ def train():
         assert False,"Invalid Dataset Selected"
         return
     
+    # nerfmm - pts를 위한 progress, dir을 위한 progress 설정
     pts_progress = torch.nn.Parameter(torch.tensor(0.))
+    pts_progress.to(device)
+
     dir_progress = torch.nn.Parameter(torch.tensor(0.))
+    dir_progress.to(device)
 
     noisy_train_poses = noisy_extrinsic[i_train]
 
@@ -998,6 +1002,7 @@ def train():
             batch_rays = torch.stack([rays_o, rays_d], 0)
             target_s = target[select_coords[:, 1], select_coords[:, 0]]
 
+        # Core optimization loop
         rgb, disp, acc, extras = render(
             H=H, W=W, chunk=args.chunk, rays=batch_rays,
             verbose=i < 10, retraw=True, camera_model=camera_model,
@@ -1336,6 +1341,7 @@ def train():
 
         global_step += 1
 
+    # Train Rendering
     print("Training Finished")
     print("Starts Train Rendering")
 
