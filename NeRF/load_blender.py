@@ -53,8 +53,10 @@ def load_blender_data(basedir, half_res=False, args=None, testskip=1):
 
     all_imgs = []
     all_poses = []
-    all_masks = []
-    all_bboxes = []
+
+    # for pixelNeRF
+    # all_masks = []
+    # all_bboxes = []
     counts = [0]
     for i, s in enumerate(splits):
         meta = metas[s]
@@ -91,8 +93,10 @@ def load_blender_data(basedir, half_res=False, args=None, testskip=1):
 
             imgs.append(img)
             poses.append(pose)
-            masks.append(mask)
-            bboxes.append(bbox)
+
+            #for pixelNeRF
+            # masks.append(mask)
+            # bboxes.append(bbox)
             
         imgs = (np.array(imgs) / 255.).astype(np.float32) # keep all 4 channels (RGBA)
         poses = np.array(poses).astype(np.float32)
@@ -101,8 +105,10 @@ def load_blender_data(basedir, half_res=False, args=None, testskip=1):
 
         all_imgs.append(imgs)
         all_poses.append(poses)
-        all_masks.append(masks)
-        all_bboxes.append(bboxes)
+
+        # for pixelNeRF
+        # all_masks.append(masks)
+        # all_bboxes.append(bboxes)
 
     i_split = [np.arange(counts[i], counts[i+1]) for i in range(3)]
     i_train, _ ,_ = i_split
@@ -111,8 +117,8 @@ def load_blender_data(basedir, half_res=False, args=None, testskip=1):
     poses = np.concatenate(all_poses, 0)
 
     # for pixelNeRF
-    masks = np.concatenate(all_masks, 0)
-    bboxes = np.concatenate(all_bboxes, 0)
+    # masks = np.concatenate(all_masks, 0)
+    # bboxes = np.concatenate(all_bboxes, 0)
 
     H, W = imgs[0].shape[:2]
     camera_angle_x = float(meta['camera_angle_x'])
@@ -190,7 +196,7 @@ def load_blender_data(basedir, half_res=False, args=None, testskip=1):
     
     extrinsic_gt = torch.from_numpy(poses).cuda().float()
 
-    return imgs, poses_update, all_bboxes, all_masks, render_poses, [H, W, noisy_focal], i_split, \
+    return imgs, poses_update, render_poses, [H, W, noisy_focal], i_split, \
         (intrinsic_gt, extrinsic_gt)
 
 

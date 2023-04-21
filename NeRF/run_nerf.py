@@ -110,7 +110,7 @@ def train():
 
     if args.dataset_type == 'blender':
         (
-            images, noisy_extrinsic, all_bboxes, all_masks, render_poses, hwf, i_split, gt_camera_info
+            images, noisy_extrinsic, render_poses, hwf, i_split, gt_camera_info
         ) = load_blender_data(args.datadir, args.half_res, args, args.testskip)
 
         print("Loaded blender dataset")
