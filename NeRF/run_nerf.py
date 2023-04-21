@@ -253,7 +253,7 @@ def train():
     print("TEST views are {}".format(i_test))
 
     # Train loop 시작
-    start = start + 1
+    start = 1
     global_step = start
     for i in trange(start, N_iters):
 
