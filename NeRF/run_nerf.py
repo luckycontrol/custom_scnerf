@@ -191,13 +191,11 @@ def train():
     part = args.camera_part if args.camera_part is not None else "camera"
     # nerfmm - 모델 생성 for 카메라 파트
     (
-        render_kwargs_train, render_kwargs_test, start,
+        render_kwargs_train, render_kwargs_test,
         grad_vars, optimizer, camera_model
     ) = create_nerf(
         args, part, pts_progress, dir_progress, H, W, noisy_focal, noisy_train_poses, mode="train", device=device
     )
-        
-    global_step = start
 
     bds_dict = {
         'near': near,
@@ -256,6 +254,7 @@ def train():
 
     # Train loop 시작
     start = start + 1
+    global_step = start
     for i in trange(start, N_iters):
 
         if i == start and i < args.add_ie and camera_model is not None:
@@ -730,7 +729,7 @@ def train():
     part = args.render_part if args.render_part is not None else "render"
     # nerfmm - 모델 생성 for 렌더링 파트
     (
-        render_kwargs_train, render_kwargs_test, start,
+        render_kwargs_train, render_kwargs_test,
         grad_vars, optimizer
     ) = create_nerf(
         args, part, pts_progress, dir_progress, noisy_focal, noisy_train_poses, H, W, mode="train", device=device
