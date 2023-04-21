@@ -165,11 +165,17 @@ class PinholeModelRotNoiseLearning10kRayoRayd(CameraModel):
 
     def get_intrinsic(self):
         return intrinsic_param_to_K(
+            # intrinsic_init
+            # [
+            #    [W, 0, W/2, 0],
+            #    [0, W, H/2, 0],
+            #    [0, 0, 1, 0],
+            #    [0, 0, 0, 1]
+            # ] 에 intrinsics_noise * intrinsics_noise_scale 를 더한 값
+            # intrinsics_noise는 학습 파라미터
             self.intrinsics_initial
             + (
-                self.intrinsics_noise * 
-                self.intrinsics_noise_scale * 
-                self.intrinsics_initial
+                self.intrinsics_noise * self.intrinsics_noise_scale * self.intrinsics_initial
             )
             if self.multiplicative_noise else
             self.intrinsics_initial
@@ -177,12 +183,15 @@ class PinholeModelRotNoiseLearning10kRayoRayd(CameraModel):
         )
 
     def get_extrinsic(self):
+        # 회전 행렬을 구하고
         extrinsic = get_44_rotation_matrix_from_33_rotation_matrix(
             ortho2rotation(
                 self.extrinsics_initial[:, :6]
                 + self.extrinsics_noise_scale * self.extrinsics_noise[:, :6]
             )
         )
+
+        # 이동 행렬을 구한다.
         extrinsic[..., :3, 3] = (
             self.extrinsics_initial[:, 6:]
             + self.extrinsics_noise_scale * self.extrinsics_noise[:, 6:]

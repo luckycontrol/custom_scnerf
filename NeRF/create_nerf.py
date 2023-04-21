@@ -127,7 +127,7 @@ def create_nerf(
         }
         
         with torch.no_grad():
-            camera_model = camera_dict[args.camera_model](**camera_kwargs)
+            camera_model = camera_dict["pinhole_rot_noise_10k_rayo_rayd"](**camera_kwargs)
             camera_model = camera_model.cuda()
         
         grad_vars += list(camera_model.parameters())

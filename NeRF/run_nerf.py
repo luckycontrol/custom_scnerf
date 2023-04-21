@@ -108,47 +108,7 @@ def train():
     args.n_gpus = torch.cuda.device_count()
     print(f"Using {args.n_gpus} GPU(s).")
 
-    # Load datacre
-    if args.dataset_type == 'llff':
-
-        (
-            images, noisy_extrinsic, bds, render_poses, i_test, gt_camera_info
-        ) = load_llff_data(
-            args.datadir, args.factor, recenter=True, bd_factor=.75,
-            spherify=args.spherify, args=args
-        )
-
-        i_val = i_test
-        i_train = np.array([i for i in np.arange(int(images.shape[0])) if
-                            (i not in i_test and i not in i_val)])
-
-        noisy_idx = i_train[0]
-        hwf = noisy_extrinsic[noisy_idx, :3, -1]
-        noisy_extrinsic = noisy_extrinsic[:, :3, :4]
-        noisy_extrinsic_new = np.zeros(
-            (len(noisy_extrinsic), 4, 4)
-        ).astype(np.float32)
-        noisy_extrinsic_new[:, :3, :] = noisy_extrinsic
-        noisy_extrinsic_new[:, 3, 3] = 1
-        noisy_extrinsic = noisy_extrinsic_new
-
-        (gt_intrinsic, gt_extrinsic) = gt_camera_info
-
-        print("Loaded LLFF dataset")
-        print("Images shape : {}".format(images.shape))
-        print("HWF : {}".format(hwf))
-        print("Directory path of data : {}".format(args.datadir))
-
-        print('DEFINING BOUNDS')
-
-        if args.no_ndc:
-            near = np.ndarray.min(bds) * .9
-            far = np.ndarray.max(bds) * 1.
-        else:
-            near = 0.
-            far = 1.
-
-    elif args.dataset_type == 'blender':
+    if args.dataset_type == 'blender':
         (
             images, noisy_extrinsic, all_bboxes, all_masks, render_poses, hwf, i_split, gt_camera_info
         ) = load_blender_data(args.datadir, args.half_res, args, args.testskip)
@@ -191,7 +151,7 @@ def train():
 
     # Cast intrinsics to right types
     H, W, noisy_focal = hwf
-    H, W =int(H), int(W)
+    H, W = int(H), int(W)
     hwf = [H, W, noisy_focal]
 
     # When running with nerfmm setup, fx = W, fy = H
@@ -256,7 +216,6 @@ def train():
         print('RENDER ONLY')
         with torch.no_grad():
 
-
             testsavedir = os.path.join(basedir, expname, 'renderonly_{}_{:06d}'.format('test' if args.render_test else 'path', start))
             os.makedirs(testsavedir, exist_ok=True)
             to8b = lambda x : (255*np.clip(x,0,1)).astype(np.uint8)
@@ -266,26 +225,14 @@ def train():
             render_poses_expand[:, :3, :3] = render_poses[:, :3, :3]
             render_poses_expand[:, 3, 3] = 1.0
 
-            if camera_model is None:
-                _hwf = (hwf[0], hwf[1], None)
-                rgbs, _ = render_path(
-                    render_poses_expand,
-                    _hwf, args.chunk, render_kwargs_test,
-                    savedir=testsavedir, mode="test",
-                    args=args,
-                    gt_intrinsic=gt_intrinsic,
-                    gt_extrinsic=render_poses_expand,
-                )
-
-            else:
-                _hwf = (hwf[0], hwf[1], None)
-                rgbs, _ = render_path(
-                    render_poses_expand,
-                    _hwf, args.chunk, render_kwargs_test,
-                    savedir=testsavedir, mode="test",
-                    camera_model=camera_model, args=args,
-                    transform_align=render_poses_expand,
-                )
+            _hwf = (hwf[0], hwf[1], None)
+            rgbs, _ = render_path(
+                render_poses_expand,
+                _hwf, args.chunk, render_kwargs_test,
+                savedir=testsavedir, mode="test",
+                camera_model=camera_model, args=args,
+                transform_align=render_poses_expand,
+            )                
 
             print('Done rendering', testsavedir)
             imageio.mimwrite(os.path.join(testsavedir, 'video.mp4'), to8b(rgbs), fps=30, quality=8)
@@ -293,30 +240,6 @@ def train():
             return
 
     use_batching = not args.no_batching
-
-    if use_batching:
-
-        # Precomputing rays_rgb is not required when camera_model is not None.
-        if camera_model is None:
-            rays = np.stack(
-                [get_rays_np(H, W, noisy_focal, p) \
-                 for p in noisy_extrinsic[:, :3, :4]],
-                axis=0
-            )
-            rays_rgb = np.concatenate([rays, images[:, None]], 1)
-            rays_rgb = np.transpose(rays_rgb, [0, 2, 3, 1, 4])
-            rays_rgb = np.stack([rays_rgb[i] for i in i_train], 0)
-            rays_rgb = np.reshape(rays_rgb, [-1, 3, 3])
-            rays_rgb = rays_rgb.astype(np.float32)
-
-        shuffled_ray_idx = np.arange(len(i_train) * H * W)
-        np.random.shuffle(shuffled_ray_idx)
-        shuffled_image_idx = shuffled_ray_idx // (H * W)
-
-        if camera_model is None:
-            rays_rgb = rays_rgb[shuffled_ray_idx]
-
-        i_batch = 0
 
     # Move training data to GPU
     images = torch.tensor(images).to(device)
@@ -331,6 +254,7 @@ def train():
     print("VAL views are {}".format(i_val))
     print("TEST views are {}".format(i_test))
 
+    # Train loop 시작
     start = start + 1
     for i in trange(start, N_iters):
 
@@ -358,147 +282,80 @@ def train():
         scalars_to_log = {}
         images_to_log = {}
 
-        # Sample random ray batch
-        if use_batching and camera_model is None:
-            # Random over all images
-            batch = rays_rgb[i_batch:i_batch + N_rand]
-            batch = torch.transpose(batch, 0, 1)
-            batch_rays, target_s = batch[:2], batch[2]
+        # 실제 학습에 사용되는 코드
+        # Random from one image
+        img_i = np.random.choice(i_train)
 
-            i_batch += N_rand
-            if i_batch >= rays_rgb.shape[0]:
-                print("Shuffle data after an epoch!")
-                rand_idx = torch.randperm(rays_rgb.shape[0])
-                rays_rgb = rays_rgb[rand_idx]
-                i_batch = 0
+        # i_train = 학습 데이터의 인덱스
+        # img_i = 학습 데이터 중 하나의 인덱스
+        # img_i_train_idx = 학습 데이터 중 img_i의 인덱스
+        img_i_train_idx = np.where(i_train == img_i)[0][0]
+        target = images[img_i]
+        noisy_pose = noisy_extrinsic[img_i, :3, :4]
 
-        elif use_batching and not camera_model is None:
-
-            ### shuffled_image_idx = shuffled_ray_idx // (H * W)
-
-            image_idx_curr_step = shuffled_image_idx[i_batch:i_batch + N_rand]
-            h_list = shuffled_ray_idx[i_batch:i_batch + N_rand] % (H * W) // W
-            w_list = shuffled_ray_idx[i_batch:i_batch + N_rand] % (H * W) % W
-
-            select_coords = np.stack([w_list, h_list], -1)
-            assert select_coords[:, 0].max() < W
-            assert select_coords[:, 1].max() < H
-
-            image_idx_curr_step_tensor = torch.from_numpy(
-                image_idx_curr_step
-            ).cuda()
-            kps_list = torch.from_numpy(select_coords).cuda()
-
-            rays_o, rays_d = get_rays_kps_use_camera(
-                part,
-                H=H,
-                W=W,
-                camera_model=camera_model,
-                idx_in_camera_param=image_idx_curr_step_tensor,
-                kps_list=kps_list
+        if i < args.precrop_iters:
+            dH = int(H // 2 * args.precrop_frac)
+            dW = int(W // 2 * args.precrop_frac)
+            
+            coords = torch.stack(
+                torch.meshgrid(
+                    torch.linspace(
+                        W // 2 - dW, W // 2 + dW - 1, 2 * dW
+                    ),
+                    torch.linspace(
+                        H // 2 - dH, H // 2 + dH - 1, 2 * dH
+                    ),
+                ),
+                -1
             )
 
-            batch_rays = torch.stack([rays_o, rays_d])
-            index_train = i_train[
-                shuffled_image_idx[i_batch: i_batch + N_rand]
-            ]
-            target_s = images[index_train, h_list, w_list]
-
-            img_i = np.random.choice(index_train)
-            img_i_train_idx = np.where(i_train == img_i)[0][0]
-
-            i_batch += N_rand
-            if i_batch >= len(shuffled_ray_idx):
-                print("Shuffle data after an epoch!")
-                np.random.shuffle(shuffled_ray_idx)
-                shuffled_image_idx = shuffled_ray_idx // (H * W)
-                i_batch = 0
-
-        else:
-            # Random from one image
-            img_i = np.random.choice(i_train)
-            img_i_train_idx = np.where(i_train == img_i)[0][0]
-            target = images[img_i]
-            noisy_pose = noisy_extrinsic[img_i, :3, :4]
-
-            if N_rand is not None:
-
-                if i < args.precrop_iters:
-                    dH = int(H // 2 * args.precrop_frac)
-                    dW = int(W // 2 * args.precrop_frac)
-                    coords = torch.stack(
-                        torch.meshgrid(
-                            torch.linspace(
-                                W // 2 - dW, W // 2 + dW - 1, 2 * dW
-                            ),
-                            torch.linspace(
-                                H // 2 - dH, H // 2 + dH - 1, 2 * dH
-                            ),
-                        ),
-                        -1
+            if i == start:
+                print(
+                    "[Config] Center cropping until iter {}".format(
+                        args.precrop_iters
                     )
-
-                    if i == start:
-                        print(
-                            "[Config] Center cropping until iter {}".format(
-                                args.precrop_iters
-                            )
-                        )
-                else:
-                    coords = torch.stack(
-                        torch.meshgrid(
-                            torch.linspace(0, W - 1, W),
-                            torch.linspace(0, H - 1, H),
-                        ),
-                        -1
-                    )
-
-                coords = torch.reshape(coords, [-1, 2])
-                assert coords[:, 0].max() < W and coords[:, 1].max() < H
-                select_inds = np.random.choice(
-                    coords.shape[0],
-                    size=[N_rand],
-                    replace=False
                 )
-                select_coords = coords[select_inds].long()
+        else:
+            coords = torch.stack(
+                torch.meshgrid(
+                    torch.linspace(0, W - 1, W),
+                    torch.linspace(0, H - 1, H),
+                ),
+                -1
+            )
 
-                if camera_model is None:
-                    rays_o, rays_d = get_rays_kps_no_camera(
-                        H=H,
-                        W=W,
-                        focal=noisy_focal,
-                        extrinsic=noisy_pose,
-                        kps_list=select_coords
-                    )
+        coords = torch.reshape(coords, [-1, 2])
+        assert coords[:, 0].max() < W and coords[:, 1].max() < H
+        select_inds = np.random.choice(
+            coords.shape[0],
+            size=[N_rand],
+            replace=False
+        )
 
-                else:
-                    rays_o, rays_d = get_rays_kps_use_camera(
-                        part,
-                        H=H,
-                        W=W,
-                        camera_model=camera_model,
-                        idx_in_camera_param=img_i_train_idx,
-                        kps_list=select_coords
-                    )
+        # 전체 이미지에서 랜덤하게 N_rand개의 좌표를 선택
+        select_coords = coords[select_inds].long()
 
-                # (2, N_rand, 3)
-                batch_rays = torch.stack([rays_o, rays_d], 0)
-                # (N_rand, 3)
-                target_s = target[select_coords[:, 1], select_coords[:, 0]]
+        # get_rays_kps_use_camera: 랜덤하게 선택된 좌표를 이용해 ray_o, ray_d를 생성
+        rays_o, rays_d = get_rays_kps_use_camera(
+            part,
+            H=H,
+            W=W,
+            camera_model=camera_model,
+            idx_in_camera_param=img_i_train_idx,
+            kps_list=select_coords
+        )
+
+        # (2, N_rand, 3)
+        batch_rays = torch.stack([rays_o, rays_d], 0)
+        # (N_rand, 3)
+        target_s = target[select_coords[:, 1], select_coords[:, 0]]
 
         #####  Core optimization loop  #####
-        if camera_model is None:
-            rgb, disp, acc, extras = render(
-                H=H, W=W, chunk=args.chunk, noisy_focal=noisy_focal,
-                rays=batch_rays, verbose=i < 10, retraw=True,
-                mode="train", **render_kwargs_train,
-            )
-        else:
-            rgb, disp, acc, extras = render(
-                H=H, W=W, chunk=args.chunk, rays=batch_rays,
-                verbose=i < 10, retraw=True, camera_model=camera_model,
-                mode="train", **render_kwargs_train,
-            )
+        rgb, disp, acc, extras = render(
+            H=H, W=W, chunk=args.chunk, rays=batch_rays,
+            verbose=i < 10, retraw=True, camera_model=camera_model,
+            mode="train", **render_kwargs_train,
+        )
 
         optimizer.zero_grad()
         train_loss_1 = img2mse(rgb, target_s)
@@ -558,43 +415,22 @@ def train():
                             kps_list=kps1_list
                         )
 
-                        if camera_model is None:
-                            ray_dist_loss_ret, n_match = proj_ray_dist_loss_single(
-                                kps0_list=kps0_list,
-                                kps1_list=kps1_list,
-                                img_idx0=img_i_train_idx,
-                                img_idx1=img_j_train_idx,
-                                rays0=rays_i,
-                                rays1=rays_j,
-                                mode="train",
-                                device=device,
-                                H=H,
-                                W=W,
-                                args=args,
-                                intrinsic=noisy_initial_intrinsic,
-                                extrinsic=torch.from_numpy(
-                                    noisy_extrinsic
-                                ).to(device),
-                                method="NeRF"
-                            )
-
-                        else:
-                            ray_dist_loss_ret, n_match = proj_ray_dist_loss_single(
-                                kps0_list=kps0_list,
-                                kps1_list=kps1_list,
-                                img_idx0=img_i,
-                                img_idx1=img_j,
-                                rays0=rays_i,
-                                rays1=rays_j,
-                                mode="train",
-                                device=device,
-                                H=H,
-                                W=W,
-                                args=args,
-                                camera_model=camera_model,
-                                method="NeRF",
-                                i_map=i_train
-                            )
+                        ray_dist_loss_ret, n_match = proj_ray_dist_loss_single(
+                            kps0_list=kps0_list,
+                            kps1_list=kps1_list,
+                            img_idx0=img_i,
+                            img_idx1=img_j,
+                            rays0=rays_i,
+                            rays1=rays_j,
+                            mode="train",
+                            device=device,
+                            H=H,
+                            W=W,
+                            args=args,
+                            camera_model=camera_model,
+                            method="NeRF",
+                            i_map=i_train
+                        )
 
                         logger_ray_dist_key = "train/ray_dist_loss"
                         logger_n_match_key = "train/n_match"
@@ -909,13 +745,6 @@ def train():
     camera_model.ray_o_noise.requires_grad_(False)
     camera_model.ray_d_noise.requires_grad_(False)
 
-    if use_batching:
-        shuffled_ray_idx = np.arange(len(i_train) * H * W)
-        np.random.shuffle(shuffled_ray_idx)
-        shuffled_image_idx = shuffled_ray_idx // (H * W)
-
-        i_batch = 0
-
     # nerfmm - 학습 시작
     start = 1
     global_step = start
@@ -925,54 +754,35 @@ def train():
         scalars_to_log = {}
         images_to_log = {}
 
-        if use_batching and not camera_model is None:
-            ### shuffled_image_idx = shuffled_ray_idx // (H * W)
+        # Random from one image
+        img_i = np.random.choice(i_train)
+        img_i_train_idx = np.where(i_train == img_i)[0][0]
+        target = images[img_i]
+        noisy_pose = noisy_extrinsic[img_i, :3, :4]
 
-            image_idx_curr_step = shuffled_image_idx[i_batch:i_batch + N_rand]
-            h_list = shuffled_ray_idx[i_batch:i_batch + N_rand] % (H * W) // W
-            w_list = shuffled_ray_idx[i_batch:i_batch + N_rand] % (H * W) % W
-
-            select_coords = np.stack([w_list, h_list], -1)
-            assert select_coords[:, 0].max() < W
-            assert select_coords[:, 1].max() < H
-
-            image_idx_curr_step_tensor = torch.from_numpy(
-                image_idx_curr_step
-            ).cuda()
-            kps_list = torch.from_numpy(select_coords).cuda()
-
-            rays_o, rays_d = get_rays_kps_use_camera(
-                part,
-                H=H,
-                W=W,
-                camera_model=camera_model,
-                idx_in_camera_param=image_idx_curr_step_tensor,
-                kps_list=kps_list
+        if i < args.precrop_iters:
+            dH = int(H // 2 * args.precrop_frac)
+            dW = int(W // 2 * args.precrop_frac)
+            
+            coords = torch.stack(
+                torch.meshgrid(
+                    torch.linspace(
+                        W // 2 - dW, W // 2 + dW - 1, 2 * dW
+                    ),
+                    torch.linspace(
+                        H // 2 - dH, H // 2 + dH - 1, 2 * dH
+                    ),
+                ),
+                -1
             )
 
-            batch_rays = torch.stack([rays_o, rays_d])
-            index_train = i_train[
-                shuffled_image_idx[i_batch: i_batch + N_rand]
-            ]
-            target_s = images[index_train, h_list, w_list]
-
-            img_i = np.random.choice(index_train)
-            img_i_train_idx = np.where(i_train == img_i)[0][0]
-
-            i_batch += N_rand
-            if i_batch >= len(shuffled_ray_idx):
-                print("Shuffle data after an epoch!")
-                np.random.shuffle(shuffled_ray_idx)
-                shuffled_image_idx = shuffled_ray_idx // (H * W)
-                i_batch = 0
-        
+            if i == start:
+                print(
+                    "[Config] Center cropping until iter {}".format(
+                        args.precrop_iters
+                    )
+                )
         else:
-            # Random from one image
-            img_i = np.random.choice(i_train)
-            img_i_train_idx = np.where(i_train == img_i)[0][0]
-            target = images[img_i]
-            noisy_pose = noisy_extrinsic[img_i, :3, :4]
-
             coords = torch.stack(
                 torch.meshgrid(
                     torch.linspace(0, W - 1, W),
@@ -981,26 +791,26 @@ def train():
                 -1
             )
 
-            coords = torch.reshape(coords, [-1, 2])
-            assert coords[:, 0].max() < W and coords[:, 1].max() < H
-            select_inds = np.random.choice(
-                coords.shape[0],
-                size=[N_rand],
-                replace=False
-            )
-            select_coords = coords[select_inds].long()
+        coords = torch.reshape(coords, [-1, 2])
+        assert coords[:, 0].max() < W and coords[:, 1].max() < H
+        select_inds = np.random.choice(
+            coords.shape[0],
+            size=[N_rand],
+            replace=False
+        )
+        select_coords = coords[select_inds].long()
 
-            rays_o, rays_d = get_rays_kps_use_camera(
-                part,
-                H=H,
-                W=W,
-                camera_model=camera_model,
-                idx_in_camera_param=img_i_train_idx,
-                kps_list=select_coords
-            )
+        rays_o, rays_d = get_rays_kps_use_camera(
+            part,
+            H=H,
+            W=W,
+            camera_model=camera_model,
+            idx_in_camera_param=img_i_train_idx,
+            kps_list=select_coords
+        )
 
-            batch_rays = torch.stack([rays_o, rays_d], 0)
-            target_s = target[select_coords[:, 1], select_coords[:, 0]]
+        batch_rays = torch.stack([rays_o, rays_d], 0)
+        target_s = target[select_coords[:, 1], select_coords[:, 0]]
 
         # Core optimization loop
         rgb, disp, acc, extras = render(

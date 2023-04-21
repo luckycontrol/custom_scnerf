@@ -56,7 +56,7 @@ def load_blender_data(basedir, half_res=False, args=None, testskip=1):
     all_masks = []
     all_bboxes = []
     counts = [0]
-    for s in splits:
+    for i, s in enumerate(splits):
         meta = metas[s]
         imgs = []
         poses = []
@@ -109,6 +109,10 @@ def load_blender_data(basedir, half_res=False, args=None, testskip=1):
 
     imgs = np.concatenate(all_imgs, 0)
     poses = np.concatenate(all_poses, 0)
+
+    # for pixelNeRF
+    masks = np.concatenate(all_masks, 0)
+    bboxes = np.concatenate(all_bboxes, 0)
 
     H, W = imgs[0].shape[:2]
     camera_angle_x = float(meta['camera_angle_x'])
