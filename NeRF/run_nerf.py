@@ -194,7 +194,7 @@ def train():
         render_kwargs_train, render_kwargs_test, start,
         grad_vars, optimizer, camera_model
     ) = create_nerf(
-        args, part, pts_progress, dir_progress, noisy_focal, noisy_train_poses, H, W, mode="train", device=device
+        args, part, pts_progress, dir_progress, H, W, noisy_focal, noisy_train_poses, mode="train", device=device
     )
         
     global_step = start
@@ -731,7 +731,7 @@ def train():
     # nerfmm - 모델 생성 for 렌더링 파트
     (
         render_kwargs_train, render_kwargs_test, start,
-        grad_vars, optimizer, camera_model
+        grad_vars, optimizer
     ) = create_nerf(
         args, part, pts_progress, dir_progress, noisy_focal, noisy_train_poses, H, W, mode="train", device=device
     )

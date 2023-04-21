@@ -32,7 +32,7 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, netchunk=1024 * 64
     return outputs
 
 def create_nerf(
-    args, part, pts_progress, dir_progress, noisy_focal, noisy_poses, H, W, mode="train", device="cuda"
+    args, part, pts_progress, dir_progress, H, W, noisy_focal=None, noisy_poses=None, mode="train", device="cuda"
 ):
     """Instantiate NeRF's MLP model."""
 
@@ -101,9 +101,9 @@ def create_nerf(
     }
     render_kwargs_test['perturb'] = False
     render_kwargs_test['raw_noise_std'] = 0.
-    
-    if args.camera_model != "none":
         
+    # 카메라 모델 생성: 카메라 파라미터 학습에만 사용
+    if part == "camera":
         cw_init = W / 2
         ch_init = H / 2
         fx_init = W if args.run_without_colmap != "none" else noisy_focal
@@ -145,53 +145,63 @@ def create_nerf(
         print("YES?")
     ##########################
 
-    start = 0
-    basedir = args.basedir
-    expname = args.expname
+    # start = 0
+    # basedir = args.basedir
+    # expname = args.expname
 
     # Load checkpoints
-    if args.ft_path is not None and args.ft_path != 'None':
-        ckpts = [args.ft_path]
-    else:
-        ckpts = [
-            os.path.join(basedir, expname, f) for f in sorted(
-                os.listdir(os.path.join(basedir, expname))
-            ) if 'tar' in f
-        ]
+    # if args.ft_path is not None and args.ft_path != 'None':
+    #     ckpts = [args.ft_path]
+    # else:
+    #     ckpts = [
+    #         os.path.join(basedir, expname, f) for f in sorted(
+    #             os.listdir(os.path.join(basedir, expname))
+    #         ) if 'tar' in f
+    #     ]
 
-    print('Found ckpts', ckpts)
+    # print('Found ckpts', ckpts)
     
-    if len(ckpts) > 0 and not args.no_reload:
-        ckpt_path = ckpts[-1]
-        print('Reloading from', ckpt_path)
-        ckpt = torch.load(ckpt_path)
+    # if len(ckpts) > 0 and not args.no_reload:
+    #     ckpt_path = ckpts[-1]
+    #     print('Reloading from', ckpt_path)
+    #     ckpt = torch.load(ckpt_path)
 
-        start = ckpt['global_step']
+    #     start = ckpt['global_step']
         
-        pretrained_dict = ckpt['optimizer_state_dict']
-        optim_dict = optimizer.state_dict()
-        optim_dict["state"].update(pretrained_dict["state"])
-        optimizer.load_state_dict(optim_dict)
+    #     pretrained_dict = ckpt['optimizer_state_dict']
+    #     optim_dict = optimizer.state_dict()
+    #     optim_dict["state"].update(pretrained_dict["state"])
+    #     optimizer.load_state_dict(optim_dict)
 
-        # Load model
-        model.load_state_dict(ckpt['network_fn_state_dict'])
-        if not model_fine is None:
-            model_fine.load_state_dict(ckpt['network_fine_state_dict'])
+    #     # Load model
+    #     model.load_state_dict(ckpt['network_fn_state_dict'])
+    #     if not model_fine is None:
+    #         model_fine.load_state_dict(ckpt['network_fine_state_dict'])
 
-        if not camera_model is None and "camera_model" in ckpt.keys():
-            camera_model.load_state_dict(ckpt["camera_model"])
+    #     if not camera_model is None and "camera_model" in ckpt.keys():
+    #         camera_model.load_state_dict(ckpt["camera_model"])
 
 
-    ##########################
+    # 카메라 파라미터 학습에만 사용
+    if part == "camera":
+        return (
+            render_kwargs_train, 
+            render_kwargs_test, 
+            start, 
+            grad_vars, 
+            optimizer, 
+            camera_model
+        )
 
-    return (
-        render_kwargs_train, 
-        render_kwargs_test, 
-        start, 
-        grad_vars, 
-        optimizer, 
-        camera_model
-    )
+    # 나머지 파트는 여기서 리턴
+    else:
+        return (
+            render_kwargs_train, 
+            render_kwargs_test, 
+            start, 
+            grad_vars, 
+            optimizer,
+        )
 
 
 def batchify(fn, chunk):
