@@ -187,7 +187,6 @@ def create_nerf(
         return (
             render_kwargs_train, 
             render_kwargs_test, 
-            start, 
             grad_vars, 
             optimizer, 
             camera_model
@@ -198,7 +197,6 @@ def create_nerf(
         return (
             render_kwargs_train, 
             render_kwargs_test, 
-            start, 
             grad_vars, 
             optimizer,
         )
