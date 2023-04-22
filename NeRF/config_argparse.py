@@ -10,7 +10,7 @@ from pyhocon import ConfigFactory
 def config_parser():
     parser = configargparse.ArgumentParser()
     parser.add_argument('--config', is_config_file=True, help='config file path')
-    parser.add_argument("--expname", type=str, default='lego_4dir_use_viewdir_nerfmm', help='experiment name')
+    parser.add_argument("--expname", type=str, default='lego_4dir_use_viewdir_nerfmm_prec=5000', help='experiment name')
     parser.add_argument("--basedir", type=str, default='./logs/', help='where to store ckpts and logs')
     parser.add_argument("--datadir", type=str, default='./data/lego', help='input data directory')
 
@@ -23,7 +23,7 @@ def config_parser():
                         help='layers in fine network')
     parser.add_argument("--netwidth_fine", type=int, default=256,
                         help='channels per layer in fine network')
-    parser.add_argument("--N_rand", type=int, default=1024,
+    parser.add_argument("--N_rand", type=int, default=2048,
                         help='batch size (number of random rays per gradient step)')
     parser.add_argument("--lrate", type=float, default=5e-4,
                         help='learning rate')
@@ -52,7 +52,7 @@ def config_parser():
                         help='number of coarse samples per ray')
     
     # nerfmm - 카메라 파라미터 이터레이션: 50000번
-    parser.add_argument("--N_iters", type=int, default=1000,
+    parser.add_argument("--N_iters", type=int, default=100001,
                         help='number of iterations')
     
     # nerfmm - 3차원 학습 이터레이션: 200000번
@@ -82,7 +82,7 @@ def config_parser():
                         help='downsampling factor to speed up rendering, set 4 or 8 for fast preview')
 
     # training options
-    parser.add_argument("--precrop_iters", type=int, default=500,
+    parser.add_argument("--precrop_iters", type=int, default=5000,
                         help='number of steps to train on central crops')
     parser.add_argument("--precrop_frac", type=float,
                         default=.5, help='fraction of img taken for central crops')
@@ -332,15 +332,15 @@ def config_parser():
 
     # Curriculum Learning
     parser.add_argument(
-        "--add_ie", default=0, type=int, 
+        "--add_ie", default=25000, type=int, 
         help="step to start learning ie"
     )
     parser.add_argument(
-        "--add_od", default=0, type=int,
+        "--add_od", default=50000, type=int,
         help="step to start learning od"
     )
     parser.add_argument(
-        "--add_prd", type=int, default=0, 
+        "--add_prd", type=int, default=75000, 
         help="step to use prd loss"
     )
 
