@@ -98,7 +98,7 @@ def config_parser():
                         help='options : armchair / cube / greek / vase')
 
     ## blender flags
-    parser.add_argument("--white_bkgd", type=bool, default=True,
+    parser.add_argument("--white_bkgd", type=bool, default=False,
                         help='set to render synthetic data on a white bkgd (always use for dvoxels)')
     parser.add_argument("--half_res", type=bool, default=False,
                         help='load blender synthetic data at 400x400 instead of 800x800')
