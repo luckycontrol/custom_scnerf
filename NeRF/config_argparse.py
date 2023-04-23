@@ -10,7 +10,7 @@ from pyhocon import ConfigFactory
 def config_parser():
     parser = configargparse.ArgumentParser()
     parser.add_argument('--config', is_config_file=True, help='config file path')
-    parser.add_argument("--expname", type=str, default='lego_4dir_use_viewdir_nerfmm_prec=5000', help='experiment name')
+    parser.add_argument("--expname", type=str, default='lego_4dir_use_viewdir_nerfmm', help='experiment name')
     parser.add_argument("--basedir", type=str, default='./logs/', help='where to store ckpts and logs')
     parser.add_argument("--datadir", type=str, default='./data/lego', help='input data directory')
 
@@ -29,7 +29,7 @@ def config_parser():
                         help='learning rate')
     parser.add_argument("--lrate_decay", type=int, default=500,
                         help='exponential learning rate decay (in 1000 steps)')
-    parser.add_argument("--chunk", type=int, default=8124,
+    parser.add_argument("--chunk", type=int, default=1024 * 32,
                         help='number of rays processed in parallel, decrease if running out of memory')
     parser.add_argument("--netchunk_per_gpu", type=int, default=1024 * 64 * 4,
                         help='number of pts sent through network in parallel, decrease if running out of memory')
@@ -301,7 +301,7 @@ def config_parser():
     parser.add_argument(
         "--run_without_colmap",
         choices=["both", "rot", "trans", "none"],
-        default="both",
+        default="none",
         help= """
         Run without colmap setup
         rot: rotation matrices are set to the identity matrix.

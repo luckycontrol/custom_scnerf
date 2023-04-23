@@ -252,6 +252,9 @@ def train():
     print("VAL views are {}".format(i_val))
     print("TEST views are {}".format(i_test))
 
+    camera_model.ray_o_noise.requires_grad_(False)
+    camera_model.ray_d_noise.requires_grad_(False)
+
     # Train loop 시작
     start = 1
     global_step = start
@@ -272,10 +275,10 @@ def train():
             camera_model.extrinsics_noise.requires_grad_(True)
             print("Activated learnable ie")
 
-        if i == args.add_od and camera_model is not None:
-            camera_model.ray_o_noise.requires_grad_(True)
-            camera_model.ray_d_noise.requires_grad_(True)
-            print("Activated learnable od")
+        # if i == args.add_od and camera_model is not None:
+        #     camera_model.ray_o_noise.requires_grad_(True)
+        #     camera_model.ray_d_noise.requires_grad_(True)
+        #     print("Activated learnable od")
 
         time0 = time.time()
         scalars_to_log = {}
