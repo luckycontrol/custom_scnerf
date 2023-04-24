@@ -77,7 +77,8 @@ def get_embedder(device, progress, multires, i=0):
     end = 0.5
     alpha = (progress.data - start) / (end - start) * multires
     k = torch.arange(multires, dtype=torch.float32, device=device)
-    weight = (1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
+    weight = (1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_())
+    weight = [i / 2 if i > 0.5 else i for i in weight ]
     
     embedder_obj = Embedder(weight, **embed_kwargs)
     embed = lambda x, eo=embedder_obj : eo.embed(x)
