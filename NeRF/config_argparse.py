@@ -82,7 +82,7 @@ def config_parser():
                         help='downsampling factor to speed up rendering, set 4 or 8 for fast preview')
 
     # training options
-    parser.add_argument("--precrop_iters", type=int, default=5000,
+    parser.add_argument("--precrop_iters", type=int, default=500,
                         help='number of steps to train on central crops')
     parser.add_argument("--precrop_frac", type=float,
                         default=.5, help='fraction of img taken for central crops')
@@ -340,7 +340,7 @@ def config_parser():
         help="step to start learning od"
     )
     parser.add_argument(
-        "--add_prd", type=int, default=75000, 
+        "--add_prd", type=int, default=100000, 
         help="step to use prd loss"
     )
 

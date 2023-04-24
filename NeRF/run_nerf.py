@@ -252,8 +252,10 @@ def train():
     print("VAL views are {}".format(i_val))
     print("TEST views are {}".format(i_test))
 
-    camera_model.ray_o_noise.requires_grad_(False)
-    camera_model.ray_d_noise.requires_grad_(False)
+    # camera_model.intrinsics_noise.requires_grad_(False)
+    # camera_model.extrinsics_noise.requires_grad_(False)
+    # camera_model.ray_o_noise.requires_grad_(False)
+    # camera_model.ray_d_noise.requires_grad_(False)
 
     # Train loop 시작
     start = 1
@@ -261,7 +263,7 @@ def train():
     for i in trange(start, N_iters):
 
         if i == start and i < args.add_ie and camera_model is not None:
-            camera_model.intrinsics_noise.requires_grad_(False)
+             camera_model.intrinsics_noise.requires_grad_(False)
             camera_model.extrinsics_noise.requires_grad_(False)
             print("Deactivated learnable ie")
 
@@ -275,10 +277,10 @@ def train():
             camera_model.extrinsics_noise.requires_grad_(True)
             print("Activated learnable ie")
 
-        # if i == args.add_od and camera_model is not None:
-        #     camera_model.ray_o_noise.requires_grad_(True)
-        #     camera_model.ray_d_noise.requires_grad_(True)
-        #     print("Activated learnable od")
+        if i == args.add_od and camera_model is not None:
+            camera_model.ray_o_noise.requires_grad_(True)
+            camera_model.ray_d_noise.requires_grad_(True)
+            print("Activated learnable od")
 
         time0 = time.time()
         scalars_to_log = {}
@@ -834,7 +836,7 @@ def train():
             train_loss = train_loss + train_loss_0
             train_psnr_0 = mse2psnr(train_loss_0)
 
-        if args.ray_loss_type != "none" and (
+        if args.ray_loss_type != "none" and part == "render" and (
                 global_step % args.i_ray_dist_loss == 1 or
                 args.i_ray_dist_loss == 1 or
                 args.debug
