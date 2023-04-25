@@ -424,10 +424,10 @@ def train():
                     coords = torch.stack(
                         torch.meshgrid(
                             torch.linspace(
-                                W // 2 - dW, W // 2 + dW - 1, 2 * dW
+                                W // 2 - dW, W // 2 + dW - 1, 4 * dW
                             ),
                             torch.linspace(
-                                H // 2 - dH, H // 2 + dH - 1, 2 * dH
+                                H // 2 - dH, H // 2 + dH - 1, 4 * dH
                             ),
                         ), 
                         -1
