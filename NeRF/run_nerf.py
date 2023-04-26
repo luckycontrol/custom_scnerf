@@ -364,6 +364,17 @@ def train():
                 -1
             )
 
+        coords = torch.reshape(coords, [-1, 2])
+        assert coords[:, 0].max() < W and coords[:, 1].max() < H
+        select_inds = np.random.choice(
+            coords.shape[0],
+            size=[N_rand],
+            replace=False
+        )
+
+        # 전체 이미지에서 랜덤하게 N_rand개의 좌표를 선택
+        select_coords = coords[select_inds].long()
+
         # get_rays_kps_use_camera: 랜덤하게 선택된 좌표를 이용해 ray_o, ray_d를 생성
         rays_o, rays_d = get_rays_kps_use_camera(
             part,
