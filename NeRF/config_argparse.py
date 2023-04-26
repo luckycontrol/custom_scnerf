@@ -281,13 +281,13 @@ def config_parser():
     parser.add_argument(
         "--extrinsics_noise_scale",
         type=float,
-        default=1,
+        default=0.15,
         help="extrinisic noise scale when the learning is noise learning. ",
     )
     parser.add_argument(
         "--intrinsics_noise_scale",
         type=float,
-        default=1,
+        default=0.15,
         help="intrinisic noise scale when the learning is noise learning.",
     )
 
