@@ -10,7 +10,7 @@ from pyhocon import ConfigFactory
 def config_parser():
     parser = configargparse.ArgumentParser()
     parser.add_argument('--config', is_config_file=True, help='config file path')
-    parser.add_argument("--expname", type=str, default='lego_4dir_use_viewdir_nerfmm', help='experiment name')
+    parser.add_argument("--expname", type=str, default='lego_4dir_use_viewdir_nerfmm_test', help='experiment name')
     parser.add_argument("--basedir", type=str, default='./logs/', help='where to store ckpts and logs')
     parser.add_argument("--datadir", type=str, default='./data/lego', help='input data directory')
 
@@ -52,7 +52,7 @@ def config_parser():
                         help='number of coarse samples per ray')
     
     # nerfmm - 카메라 파라미터 이터레이션: 50000번
-    parser.add_argument("--N_iters", type=int, default=100001,
+    parser.add_argument("--N_iters", type=int, default=200001,
                         help='number of iterations')
     
     # nerfmm - 3차원 학습 이터레이션: 200000번
@@ -281,13 +281,13 @@ def config_parser():
     parser.add_argument(
         "--extrinsics_noise_scale",
         type=float,
-        default=1,
+        default=0.15,
         help="extrinisic noise scale when the learning is noise learning. ",
     )
     parser.add_argument(
         "--intrinsics_noise_scale",
         type=float,
-        default=1,
+        default=0.15,
         help="intrinisic noise scale when the learning is noise learning.",
     )
 
@@ -326,7 +326,7 @@ def config_parser():
         type=str2bool, 
         nargs="?", 
         const=True,
-        default=True, 
+        default=False, 
         help= "Adopt custom optimizer"
     )
 
