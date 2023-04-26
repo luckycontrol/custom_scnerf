@@ -27,30 +27,43 @@ def config_parser():
                         help='batch size (number of random rays per gradient step)')
     parser.add_argument("--lrate", type=float, default=5e-4,
                         help='learning rate')
-    parser.add_argument("--lrate_decay", type=int, default=250,
+    parser.add_argument("--lrate_decay", type=int, default=500,
                         help='exponential learning rate decay (in 1000 steps)')
     parser.add_argument("--chunk", type=int, default=1024 * 32,
                         help='number of rays processed in parallel, decrease if running out of memory')
     parser.add_argument("--netchunk_per_gpu", type=int, default=1024 * 64 * 4,
                         help='number of pts sent through network in parallel, decrease if running out of memory')
-    parser.add_argument("--no_batching", action='store_true',
+    parser.add_argument("--no_batching", type=bool, default=True,
                         help='only take random rays from 1 image at a time')
-    parser.add_argument("--no_reload", action='store_true',
+    parser.add_argument("--no_reload", type=bool, default=True,
                         help='do not reload weights from saved ckpt')
-    parser.add_argument("--ft_path", type=str, default=None,
+    parser.add_argument("--ft_path", type=str, default="lego_4dir_use_viewdir_nerfmm_DESKTOP-DBF6QA9_2023_04_18_12_43_44",
                         help='specific weights npy file to reload for coarse network')
 
+    # nerfmm - part 변수 추가
+    parser.add_argument("--camera_part", type=str, default="camera",
+                        help='camera part')
+
+    parser.add_argument("--render_part", type=str, default="render",
+                        help='render part')
 
     # rendering options
     parser.add_argument("--N_samples", type=int, default=64,
                         help='number of coarse samples per ray')
-    parser.add_argument("--N_iters", type=int, default=200001,
+    
+    # nerfmm - 카메라 파라미터 이터레이션: 50000번
+    parser.add_argument("--N_iters", type=int, default=100001,
                         help='number of iterations')
+    
+    # nerfmm - 3차원 학습 이터레이션: 200000번
+    parser.add_argument("--N_repr_iters", type=int, default=200001,
+                        help='number of iterations')
+
     parser.add_argument("--N_importance", type=int, default=128,
                         help='number of additional fine samples per ray')
     parser.add_argument("--perturb", type=float, default=1.,
                         help='set to 0. for no jitter, 1. for jitter')
-    parser.add_argument("--use_viewdirs", action='store', type=bool, default=True,
+    parser.add_argument("--use_viewdirs", type=bool, default=True,
                         help='use full 5D input instead of 3D')
     parser.add_argument("--i_embed", type=int, default=0,
                         help='set 0 for default positional encoding, -1 for none')
@@ -69,7 +82,7 @@ def config_parser():
                         help='downsampling factor to speed up rendering, set 4 or 8 for fast preview')
 
     # training options
-    parser.add_argument("--precrop_iters", type=int, default=10000,
+    parser.add_argument("--precrop_iters", type=int, default=5000,
                         help='number of steps to train on central crops')
     parser.add_argument("--precrop_frac", type=float,
                         default=.5, help='fraction of img taken for central crops')
@@ -87,7 +100,7 @@ def config_parser():
     ## blender flags
     parser.add_argument("--white_bkgd", type=bool, default=False,
                         help='set to render synthetic data on a white bkgd (always use for dvoxels)')
-    parser.add_argument("--half_res", action='store_true',
+    parser.add_argument("--half_res", type=bool, default=False,
                         help='load blender synthetic data at 400x400 instead of 800x800')
 
     ## llff flags
@@ -268,13 +281,13 @@ def config_parser():
     parser.add_argument(
         "--extrinsics_noise_scale",
         type=float,
-        default=1,
+        default=0.15,
         help="extrinisic noise scale when the learning is noise learning. ",
     )
     parser.add_argument(
         "--intrinsics_noise_scale",
         type=float,
-        default=1,
+        default=0.15,
         help="intrinisic noise scale when the learning is noise learning.",
     )
 
@@ -327,7 +340,7 @@ def config_parser():
         help="step to start learning od"
     )
     parser.add_argument(
-        "--add_prd", type=int, default=100000, 
+        "--add_prd", type=int, default=75000, 
         help="step to use prd loss"
     )
 

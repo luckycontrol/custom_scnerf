@@ -69,6 +69,7 @@ def projected_ray_distance_evaluation(
         args,
         ray_fun,
         ray_fun_gt,
+        part,
         H,
         W,
         mode,
@@ -161,11 +162,11 @@ def projected_ray_distance_evaluation(
                     extrinsic
                 
                 rays_i = ray_fun(
-                    H=H, W=W, focal=intrinsic[0][0], 
+                    part=part, H=H, W=W, focal=intrinsic[0][0], 
                     extrinsic=extrinsic_evaluate[img_i], kps_list=kps0_list
                 )
                 rays_j = ray_fun(
-                    H=H, W=W, focal=intrinsic[0][0], 
+                    part=part, H=H, W=W, focal=intrinsic[0][0], 
                     extrinsic=extrinsic_evaluate[img_j], kps_list=kps1_list
                 )
                 
@@ -191,12 +192,12 @@ def projected_ray_distance_evaluation(
                     if mode == "train" else None
                 
                 rays_i = ray_fun(
-                    H=H, W=W, camera_model=camera_model,
+                    part=part, H=H, W=W, camera_model=camera_model,
                     extrinsic=extrinsic_evaluate_i, kps_list=kps0_list, 
                     idx_in_camera_param=camera_idx_i
                 )
                 rays_j = ray_fun(
-                    H=H, W=W, camera_model=camera_model,
+                    part=part, H=H, W=W, camera_model=camera_model,
                     extrinsic=extrinsic_evaluate_j, kps_list=kps1_list, 
                     idx_in_camera_param=camera_idx_j
                 )

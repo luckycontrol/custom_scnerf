@@ -38,9 +38,10 @@ def render(
         # It is used only when the code uses our model.
         
         assert not i_map is None 
-        assert image_idx in i_map
+        assert image_idx in i_map 
         assert gt_intrinsic is None
         assert gt_extrinsic is None
+
         idx_in_camera_param=np.where(i_map==image_idx)[0][0]
         rays_o, rays_d = get_rays_full_image_use_camera(
             H=H,

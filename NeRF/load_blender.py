@@ -6,10 +6,14 @@ import json
 import torch.nn.functional as F
 import cv2
 
+from util import get_image_to_tensor_balanced, get_mask_to_tensor
+
 import sys
 sys.path.insert(0, "../model")
 from camera_model import ortho2rotation, rotation2orth, make_rand_axis, R_axis_angle
 
+image_to_tensor = get_image_to_tensor_balanced()
+mask_to_tensor = get_mask_to_tensor()
 
 trans_t = lambda t : torch.Tensor([
     [1,0,0,0],
@@ -49,11 +53,18 @@ def load_blender_data(basedir, half_res=False, args=None, testskip=1):
 
     all_imgs = []
     all_poses = []
+
+    # for pixelNeRF
+    # all_masks = []
+    # all_bboxes = []
     counts = [0]
-    for s in splits:
+    for i, s in enumerate(splits):
         meta = metas[s]
         imgs = []
         poses = []
+        masks = []
+        bboxes = []
+
         if s=='train' or testskip==0:
             skip = 1
         else:
@@ -61,20 +72,53 @@ def load_blender_data(basedir, half_res=False, args=None, testskip=1):
 
         for frame in meta['frames'][::skip]:
             fname = os.path.join(basedir, frame['file_path'] + '.png')
-            imgs.append(imageio.imread(fname))
-            poses.append(np.array(frame['transform_matrix']))
+            img = imageio.imread(fname)
+            mask = (img != 255).all(axis=-1)[..., None].astype(np.uint8) * 255
+            mask_tensor = mask_to_tensor(mask)
+            
+            pose = np.array(frame['transform_matrix'])
+
+            rows = np.any(mask, axis=1)
+            cols = np.any(mask, axis=0)
+            rnz = np.where(rows)[0]
+            cnz = np.where(cols)[0]
+            if len(rnz) == 0:
+                raise RuntimeError(
+                    "ERROR: Bad image at", fname, "please investigate!"
+                )
+            
+            rmin, rmax = rnz[[0, -1]]
+            cmin, cmax = cnz[[0, -1]]
+            bbox = torch.tensor([cmin, rmin, cmax, rmax], dtype=torch.float32)
+
+            imgs.append(img)
+            poses.append(pose)
+
+            #for pixelNeRF
+            # masks.append(mask)
+            # bboxes.append(bbox)
             
         imgs = (np.array(imgs) / 255.).astype(np.float32) # keep all 4 channels (RGBA)
         poses = np.array(poses).astype(np.float32)
+
         counts.append(counts[-1] + imgs.shape[0])
+
         all_imgs.append(imgs)
         all_poses.append(poses)
+
+        # for pixelNeRF
+        # all_masks.append(masks)
+        # all_bboxes.append(bboxes)
 
     i_split = [np.arange(counts[i], counts[i+1]) for i in range(3)]
     i_train, _ ,_ = i_split
 
     imgs = np.concatenate(all_imgs, 0)
     poses = np.concatenate(all_poses, 0)
+
+    # for pixelNeRF
+    # masks = np.concatenate(all_masks, 0)
+    # bboxes = np.concatenate(all_bboxes, 0)
 
     H, W = imgs[0].shape[:2]
     camera_angle_x = float(meta['camera_angle_x'])

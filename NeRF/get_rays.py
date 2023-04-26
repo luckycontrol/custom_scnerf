@@ -90,7 +90,9 @@ def get_rays_kps_no_camera(H, W, focal, extrinsic, kps_list):
     return rays_o, rays_d
 
 
-def get_rays_kps_use_camera(H,
+def get_rays_kps_use_camera(
+                            part,
+                            H,
                             W,
                             camera_model,
                             kps_list,
@@ -114,9 +116,12 @@ def get_rays_kps_use_camera(H,
          torch.ones_like(kps_list[:, 0])],
         dim=-1).float()
 
-    idx_in_camera_param = idx_in_camera_param.long()
+    if not isinstance(idx_in_camera_param, np.int64):
+        idx_in_camera_param = idx_in_camera_param.long()
 
+    # 4x4 matrix
     intrinsics_inv = torch.inverse(camera_model.get_intrinsic()[:3, :3])
+
     extrinsic = camera_model.get_extrinsic()[idx_in_camera_param] \
         if extrinsic is None else extrinsic
 

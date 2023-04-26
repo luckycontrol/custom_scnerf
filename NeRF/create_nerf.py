@@ -32,19 +32,31 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, netchunk=1024 * 64
     return outputs
 
 def create_nerf(
+<<<<<<< HEAD
     args, position_progress, dir_progress, noisy_focal, noisy_poses, H, W, mode="train", device="cuda"
+=======
+    args, part, pts_progress, dir_progress, H, W, noisy_focal=None, noisy_poses=None, mode="train", device="cuda"
+>>>>>>> 28fe281612aaab81606d76afe40007ccb5bad75e
 ):
     """Instantiate NeRF's MLP model."""
 
     camera_model = None
 
+<<<<<<< HEAD
     embed_fn, input_ch = get_embedder(device, position_progress, args.multires, args.i_embed)
+=======
+    embed_fn, input_ch = get_embedder(device, part, pts_progress, args.multires, args.i_embed)
+>>>>>>> 28fe281612aaab81606d76afe40007ccb5bad75e
 
     input_ch_views = 0
     embeddirs_fn = None
     if args.use_viewdirs:
         embeddirs_fn, input_ch_views = get_embedder(
             device,
+<<<<<<< HEAD
+=======
+            part,
+>>>>>>> 28fe281612aaab81606d76afe40007ccb5bad75e
             dir_progress,
             args.multires_views, 
             args.i_embed
@@ -54,15 +66,23 @@ def create_nerf(
     model = NeRF(D=args.netdepth, W=args.netwidth, input_ch=input_ch, 
                  output_ch=output_ch, skips=skips, 
                  input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs)
-    model = nn.DataParallel(model).to(device)
-    grad_vars = list(model.parameters())
+    #model = nn.DataParallel(model).to(device)
+    model = model.to(device)
+
+    grad_vars = []
+    grad_vars.append(pts_progress)
+    grad_vars.append(dir_progress)
+    grad_vars += list(model.parameters())
     
     model_fine = None
     if args.N_importance > 0:
         model_fine = NeRF(D=args.netdepth_fine, W=args.netwidth_fine,
             input_ch=input_ch, output_ch=output_ch, skips=skips,
             input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs)
-        model_fine = nn.DataParallel(model_fine).to(device)
+
+        #model_fine = nn.DataParallel(model_fine).to(device)
+        model_fine = model_fine.to(device)
+
         grad_vars += list(model_fine.parameters())
 
     network_query_fn = lambda inputs, viewdirs, network_fn: run_network(
@@ -92,9 +112,9 @@ def create_nerf(
     }
     render_kwargs_test['perturb'] = False
     render_kwargs_test['raw_noise_std'] = 0.
-    
-    if args.camera_model != "none":
         
+    # 카메라 모델 생성: 카메라 파라미터 학습에만 사용
+    if part == "camera":
         cw_init = W / 2
         ch_init = H / 2
         fx_init = W if args.run_without_colmap != "none" else noisy_focal
@@ -118,7 +138,7 @@ def create_nerf(
         }
         
         with torch.no_grad():
-            camera_model = camera_dict[args.camera_model](**camera_kwargs)
+            camera_model = camera_dict["pinhole_rot_noise_10k_rayo_rayd"](**camera_kwargs)
             camera_model = camera_model.cuda()
         
         grad_vars += list(camera_model.parameters())
@@ -136,53 +156,70 @@ def create_nerf(
         print("YES?")
     ##########################
 
-    start = 0
-    basedir = args.basedir
-    expname = args.expname
+    # start = 0
+    # basedir = args.basedir
+    # expname = args.expname
 
     # Load checkpoints
-    if args.ft_path is not None and args.ft_path != 'None':
-        ckpts = [args.ft_path]
-    else:
-        ckpts = [
-            os.path.join(basedir, expname, f) for f in sorted(
-                os.listdir(os.path.join(basedir, expname))
-            ) if 'tar' in f
-        ]
+    # if args.ft_path is not None and args.ft_path != 'None':
+    #     ckpts = [args.ft_path]
+    # else:
+    #     ckpts = [
+    #         os.path.join(basedir, expname, f) for f in sorted(
+    #             os.listdir(os.path.join(basedir, expname))
+    #         ) if 'tar' in f
+    #     ]
+    # if part == "camera":
+    #     if args.ft_path is not None and args.ft_path != 'None':
+    #         ckpts = [args.ft_path]
+    #     else:
+    #         ckpts = [
+    #             os.path.join(basedir, expname, f) for f in sorted(
+    #                 os.listdir(os.path.join(basedir, expname))
+    #             ) if 'tar' in f
+    #         ]
 
-    print('Found ckpts', ckpts)
+    # print('Found ckpts', ckpts)
     
-    if len(ckpts) > 0 and not args.no_reload:
-        ckpt_path = ckpts[-1]
-        print('Reloading from', ckpt_path)
-        ckpt = torch.load(ckpt_path)
+    # if len(ckpts) > 0 and not args.no_reload:
+    #     ckpt_path = ckpts[-1]
+    #     print('Reloading from', ckpt_path)
+    #     ckpt = torch.load(ckpt_path)
 
-        start = ckpt['global_step']
+    #     start = ckpt['global_step']
         
-        pretrained_dict = ckpt['optimizer_state_dict']
-        optim_dict = optimizer.state_dict()
-        optim_dict["state"].update(pretrained_dict["state"])
-        optimizer.load_state_dict(optim_dict)
+    #     pretrained_dict = ckpt['optimizer_state_dict']
+    #     optim_dict = optimizer.state_dict()
+    #     optim_dict["state"].update(pretrained_dict["state"])
+    #     optimizer.load_state_dict(optim_dict)
 
-        # Load model
-        model.load_state_dict(ckpt['network_fn_state_dict'])
-        if not model_fine is None:
-            model_fine.load_state_dict(ckpt['network_fine_state_dict'])
+    #     # Load model
+    #     model.load_state_dict(ckpt['network_fn_state_dict'])
+    #     if not model_fine is None:
+    #         model_fine.load_state_dict(ckpt['network_fine_state_dict'])
 
-        if not camera_model is None and "camera_model" in ckpt.keys():
-            camera_model.load_state_dict(ckpt["camera_model"])
+    #     if not camera_model is None and "camera_model" in ckpt.keys():
+    #         camera_model.load_state_dict(ckpt["camera_model"])
 
 
-    ##########################
+    # 카메라 파라미터 학습에만 사용
+    if part == "camera":
+        return (
+            render_kwargs_train, 
+            render_kwargs_test, 
+            grad_vars, 
+            optimizer, 
+            camera_model
+        )
 
-    return (
-        render_kwargs_train, 
-        render_kwargs_test, 
-        start, 
-        grad_vars, 
-        optimizer, 
-        camera_model,
-    )
+    # 나머지 파트는 여기서 리턴
+    else:
+        return (
+            render_kwargs_train, 
+            render_kwargs_test, 
+            grad_vars, 
+            optimizer,
+        )
 
 
 def batchify(fn, chunk):
