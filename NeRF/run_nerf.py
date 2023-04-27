@@ -451,6 +451,8 @@ def train():
         else:
             train_loss.backward()
             optimizer.step()
+            print("Gradient of pts_progress: ", pts_progress.grad)
+            print("Gradient of dir_progress: ", dir_progress.grad)
 
         if not camera_model is None and global_step % 2000 == 1:
             scalar_dict, image_dict = camera_model.log_noises(

@@ -111,6 +111,7 @@ def get_rays_kps_use_camera(
         not idx_in_camera_param is None and extrinsic is None
         )
 
+    # (x, y) -> (x, y, 1)
     kps_list_expand = torch.stack(
         [kps_list[:, 0], kps_list[:, 1],
          torch.ones_like(kps_list[:, 0])],
