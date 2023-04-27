@@ -154,7 +154,7 @@ def train():
     H, W = int(H), int(W)
     hwf = [H, W, noisy_focal]
 
-    # When running with nerfmm setup, fx = W, fy = H
+    # colmap을 사용하지 않을 경우
     if args.run_without_colmap:
         noisy_initial_intrinsic = torch.tensor(
             [
@@ -164,6 +164,7 @@ def train():
                 [0, 0, 0, 1]
             ]
         )
+    # colmap을 사용할 경우
     else:
         noisy_initial_intrinsic = torch.tensor(
             [
@@ -189,7 +190,7 @@ def train():
             file.write(open(args.config, 'r').read())
 
     part = args.camera_part if args.camera_part is not None else "camera"
-    # nerfmm - 모델 생성 for 카메라 파트
+    # 모델 생성
     (
         render_kwargs_train, render_kwargs_test,
         grad_vars, optimizer, camera_model
@@ -251,11 +252,6 @@ def train():
     print("TRAIN views are {}".format(i_train))
     print("VAL views are {}".format(i_val))
     print("TEST views are {}".format(i_test))
-
-    # camera_model.intrinsics_noise.requires_grad_(False)
-    # camera_model.extrinsics_noise.requires_grad_(False)
-    # camera_model.ray_o_noise.requires_grad_(False)
-    # camera_model.ray_d_noise.requires_grad_(False)
 
     # Train loop 시작
     start = 1
@@ -328,15 +324,16 @@ def train():
                 -1
             )
 
+        # coords를 (x, y) 형태로 변환
         coords = torch.reshape(coords, [-1, 2])
         assert coords[:, 0].max() < W and coords[:, 1].max() < H
+        # (N_rand, 2)
         select_inds = np.random.choice(
             coords.shape[0],
             size=[N_rand],
             replace=False
         )
 
-        # 전체 이미지에서 랜덤하게 N_rand개의 좌표를 선택
         select_coords = coords[select_inds].long()
 
         # get_rays_kps_use_camera: 랜덤하게 선택된 좌표를 이용해 ray_o, ray_d를 생성
@@ -461,6 +458,8 @@ def train():
                 gt_extrinsic[i_train],
             )
             scalars_to_log.update(scalar_dict)
+            scalars_to_log['pts_progress'] = pts_progress.data
+            scalars_to_log['dir_progress'] = dir_progress.data
             images_to_log.update(image_dict)
 
         # NOTE: IMPORTANT!

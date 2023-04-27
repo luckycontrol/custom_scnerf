@@ -119,9 +119,17 @@ def get_rays_kps_use_camera(
     if not isinstance(idx_in_camera_param, np.int64):
         idx_in_camera_param = idx_in_camera_param.long()
 
-    # 4x4 matrix
+    # 3x3
+    r"""
+    [
+        [fx, 0, cx],
+        [0, fy, cy],
+        [0, 0, 1]
+    ]
+    """
     intrinsics_inv = torch.inverse(camera_model.get_intrinsic()[:3, :3])
 
+    # training 데이터의 카메라 외부 파라미터 중 선택된 파라미터만 사용
     extrinsic = camera_model.get_extrinsic()[idx_in_camera_param] \
         if extrinsic is None else extrinsic
 

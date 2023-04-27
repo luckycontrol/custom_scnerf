@@ -312,8 +312,8 @@ def config_parser():
 
     # 10k model parameters
     parser.add_argument("--grid_size", default=10, type=int)
-    parser.add_argument("--ray_d_noise_scale", default=1e-3, type=float)
-    parser.add_argument("--ray_o_noise_scale", default=1e-3, type=float)
+    parser.add_argument("--ray_d_noise_scale", default=1e-4, type=float)
+    parser.add_argument("--ray_o_noise_scale", default=1e-4, type=float)
 
     # Matcher Experiments
     parser.add_argument(
