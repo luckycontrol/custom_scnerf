@@ -135,10 +135,10 @@ def train():
         return
     
     # nerfmm - pts를 위한 progress, dir을 위한 progress 설정
-    pts_progress = torch.nn.Parameter(torch.tensor(0.))
+    pts_progress = torch.nn.Parameter(torch.tensor(1e-4))
     pts_progress.to(device)
 
-    dir_progress = torch.nn.Parameter(torch.tensor(0.))
+    dir_progress = torch.nn.Parameter(torch.tensor(1e-4))
     dir_progress.to(device)
 
     noisy_train_poses = noisy_extrinsic[i_train]
@@ -451,8 +451,6 @@ def train():
         else:
             train_loss.backward()
             optimizer.step()
-            print("Gradient of pts_progress: ", pts_progress.grad)
-            print("Gradient of dir_progress: ", dir_progress.grad)
 
         if not camera_model is None and global_step % 2000 == 1:
             scalar_dict, image_dict = camera_model.log_noises(

@@ -10,7 +10,7 @@ from pyhocon import ConfigFactory
 def config_parser():
     parser = configargparse.ArgumentParser()
     parser.add_argument('--config', is_config_file=True, help='config file path')
-    parser.add_argument("--expname", type=str, default='lego_4dir_use_viewdir_nerfmm_test', help='experiment name')
+    parser.add_argument("--expname", type=str, default='lego_4dir_test', help='experiment name')
     parser.add_argument("--basedir", type=str, default='./logs/', help='where to store ckpts and logs')
     parser.add_argument("--datadir", type=str, default='./data/lego', help='input data directory')
 
@@ -325,7 +325,7 @@ def config_parser():
         "--use_custom_optim",
         type=str2bool, 
         nargs="?", 
-        const=True,
+        const=False,
         default=False, 
         help= "Adopt custom optimizer"
     )

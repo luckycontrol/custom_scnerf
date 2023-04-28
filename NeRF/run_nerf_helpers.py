@@ -70,7 +70,6 @@ class Embedder:
             inputs[i] = inputs[i].detach().requires_grad_(True)
 
         output = torch.cat(inputs, -1)
-        output.register_hook(lambda grad: print("Gradient in Embedder: ", grad))
         return output
         # return torch.cat([fn(inputs) for fn in self.embed_fns], -1)   
 
