@@ -57,6 +57,7 @@ class Embedder:
                 for p_fn in self.kwargs['periodic_fns']:
                     def weighted_periodic_fn(x, p_fn=p_fn, freq=freq_bands[i], weight=self.weights[i]):
                         return p_fn(x * freq) * weight
+                    # embed_fns.append(lambda x, p_fn=p_fn, freq=freq_bands[i], weight=self.weights[i]: p_fn(x * freq) * weight)
                     embed_fns.append(weighted_periodic_fn)
                     out_dim += d
                     
@@ -64,7 +65,11 @@ class Embedder:
         self.out_dim = out_dim 
 
     def embed(self, inputs):
-        return torch.cat([fn(inputs) for fn in self.embed_fns], -1)   
+        inputs = [fn(inputs) for fn in self.embed_fns]
+        for i in range(len(inputs)):
+            inputs[i] = inputs[i].detach().requires_grad_(True)
+        return torch.cat(inputs, -1)
+        # return torch.cat([fn(inputs) for fn in self.embed_fns], -1)   
 
 # nerfmm - 수정: 3차원 공간 학습, 카메라 파라미터 학습 구분
 def get_embedder(device, part, progress, multires, i=0):
