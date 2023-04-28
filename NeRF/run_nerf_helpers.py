@@ -68,7 +68,10 @@ class Embedder:
         inputs = [fn(inputs) for fn in self.embed_fns]
         for i in range(len(inputs)):
             inputs[i] = inputs[i].detach().requires_grad_(True)
-        return torch.cat(inputs, -1)
+
+        output = torch.cat(inputs, -1)
+        output.register_hook(lambda grad: print("Gradient in Embedder: ", grad))
+        return output
         # return torch.cat([fn(inputs) for fn in self.embed_fns], -1)   
 
 # nerfmm - 수정: 3차원 공간 학습, 카메라 파라미터 학습 구분
