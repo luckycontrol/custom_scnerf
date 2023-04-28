@@ -37,8 +37,7 @@ def config_parser():
                         help='only take random rays from 1 image at a time')
     parser.add_argument("--no_reload", type=bool, default=True,
                         help='do not reload weights from saved ckpt')
-    parser.add_argument("--ft_path", type=str, default="lego_4dir_use_viewdir_nerfmm_DESKTOP-DBF6QA9_2023_04_18_12_43_44",
-                        help='specific weights npy file to reload for coarse network')
+    parser.add_argument("--ft_path", type=str, default="")
 
     # nerfmm - part 변수 추가
     parser.add_argument("--camera_part", type=str, default="camera",
@@ -52,7 +51,7 @@ def config_parser():
                         help='number of coarse samples per ray')
     
     # nerfmm - 카메라 파라미터 이터레이션: 50000번
-    parser.add_argument("--N_iters", type=int, default=100001,
+    parser.add_argument("--N_iters", type=int, default=200001,
                         help='number of iterations')
     
     # nerfmm - 3차원 학습 이터레이션: 200000번
@@ -82,7 +81,7 @@ def config_parser():
                         help='downsampling factor to speed up rendering, set 4 or 8 for fast preview')
 
     # training options
-    parser.add_argument("--precrop_iters", type=int, default=5000,
+    parser.add_argument("--precrop_iters", type=int, default=500,
                         help='number of steps to train on central crops')
     parser.add_argument("--precrop_frac", type=float,
                         default=.5, help='fraction of img taken for central crops')
@@ -98,7 +97,7 @@ def config_parser():
                         help='options : armchair / cube / greek / vase')
 
     ## blender flags
-    parser.add_argument("--white_bkgd", type=bool, default=True,
+    parser.add_argument("--white_bkgd", type=bool, default=False,
                         help='set to render synthetic data on a white bkgd (always use for dvoxels)')
     parser.add_argument("--half_res", type=bool, default=False,
                         help='load blender synthetic data at 400x400 instead of 800x800')
