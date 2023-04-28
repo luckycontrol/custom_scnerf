@@ -55,7 +55,9 @@ class Embedder:
         else:
             for i, _ in enumerate(freq_bands):
                 for p_fn in self.kwargs['periodic_fns']:
-                    embed_fns.append(lambda x, p_fn=p_fn, freq=freq_bands[i], weight=self.weights[i]: p_fn(x * freq) * weight)
+                    def weighted_periodic_fn(x, p_fn=p_fn, freq=freq_bands[i], weight=self.weights[i]):
+                        return p_fn(x * freq) * weight
+                    embed_fns.append(weighted_periodic_fn)
                     out_dim += d
                     
         self.embed_fns = embed_fns
