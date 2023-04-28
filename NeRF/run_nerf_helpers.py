@@ -134,31 +134,6 @@ class NeRF(nn.Module):
         else:
             self.output_linear = DenseLayer(W, output_ch, activation="linear")
 
-    # for nerfmm - 가중치를 출력하는 함수
-    def log(self):
-        print(f'[pts_linears]')
-        for i, layer in enumerate(self.pts_linears):
-            print(f'layer {i} weight:')
-            print(f'{layer.weight}')
-        
-        print(f'[views_linears]')
-        for i, layer in enumerate(self.views_linears):
-            print(f'layer {i} weight:')
-            print(f'{layer.weight}')
-        
-        print(f'[output_linear]')
-        print(f'{self.output_linear.weight}')
-
-    # for nerfmm - 가중치를 초기화하는 함수
-    def reset(self):
-        for i, layer in enumerate(self.pts_linears):
-            layer.reset_parameters()
-        
-        for i, layer in enumerate(self.views_linears):
-            layer.reset_parameters()
-        
-        self.output_linear.reset_parameters()
-
     def forward(self, x):
         input_pts, input_views = torch.split(x, [self.input_ch, self.input_ch_views], dim=-1)
         h = input_pts
