@@ -116,6 +116,8 @@ class NeRF(nn.Module):
         self.input_ch_views = input_ch_views
         self.skips = skips
         self.use_viewdirs = use_viewdirs
+
+        self.progress = torch.nn.Parameter(torch.tensor(0.))
         
         self.pts_linears = nn.ModuleList(
             [DenseLayer(input_ch, W, activation="relu")] + [DenseLayer(W, W, activation="relu") if i not in self.skips else DenseLayer(W + input_ch, W, activation="relu") for i in range(D-1)])
@@ -133,6 +135,9 @@ class NeRF(nn.Module):
             self.rgb_linear = DenseLayer(W//2, 3, activation="linear")
         else:
             self.output_linear = DenseLayer(W, output_ch, activation="linear")
+
+    def positional_encoding(self, x):
+        pass
 
     def forward(self, x):
         input_pts, input_views = torch.split(x, [self.input_ch, self.input_ch_views], dim=-1)

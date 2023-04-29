@@ -32,51 +32,30 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, netchunk=1024 * 64
     return outputs
 
 def create_nerf(
-    args, part, pts_progress, dir_progress, H, W, noisy_focal=None, noisy_poses=None, mode="train", device="cuda"
+    args, part, H, W, noisy_focal=None, noisy_poses=None, mode="train", device="cuda"
 ):
     """Instantiate NeRF's MLP model."""
 
     camera_model = None
 
-    embed_fn, input_ch = get_embedder(device, part, pts_progress, args.multires, args.i_embed)
-
-    input_ch_views = 0
-    embeddirs_fn = None
-    if args.use_viewdirs:
-        embeddirs_fn, input_ch_views = get_embedder(
-            device,
-            part,
-            dir_progress,
-            args.multires_views, 
-            args.i_embed
-        )
-    output_ch = 5 if args.N_importance > 0 else 4
+    output_ch = 5
     skips = [4]
-    model = NeRF(D=args.netdepth, W=args.netwidth, input_ch=input_ch, 
-                 output_ch=output_ch, skips=skips, 
-                 input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs)
+    model = NeRF(D=args.netdepth, W=args.netwidth, output_ch=output_ch, 
+        skips=skips, use_viewdirs=args.use_viewdirs)
     #model = nn.DataParallel(model).to(device)
     model = model.to(device)
-
-    grad_vars = []
-    grad_vars.append(pts_progress)
-    grad_vars.append(dir_progress)
     grad_vars += list(model.parameters())
     
     model_fine = None
-    if args.N_importance > 0:
-        model_fine = NeRF(D=args.netdepth_fine, W=args.netwidth_fine,
-            input_ch=input_ch, output_ch=output_ch, skips=skips,
-            input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs)
+    model_fine = NeRF(D=args.netdepth_fine, W=args.netwidth_fine,
+        output_ch=output_ch, skips=skips, use_viewdirs=args.use_viewdirs)
 
-        #model_fine = nn.DataParallel(model_fine).to(device)
-        model_fine = model_fine.to(device)
-
-        grad_vars += list(model_fine.parameters())
+    #model_fine = nn.DataParallel(model_fine).to(device)
+    model_fine = model_fine.to(device)
+    grad_vars += list(model_fine.parameters())
 
     network_query_fn = lambda inputs, viewdirs, network_fn: run_network(
-        inputs, viewdirs, network_fn, embed_fn=embed_fn, 
-        embeddirs_fn=embeddirs_fn, netchunk=args.netchunk_per_gpu * args.n_gpus)
+        inputs, viewdirs, network_fn, netchunk=args.netchunk_per_gpu * args.n_gpus)
     
     render_kwargs_train = {
         'network_query_fn': network_query_fn,
