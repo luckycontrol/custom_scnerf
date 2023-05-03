@@ -391,6 +391,7 @@ def train():
         #####  Core optimization loop  #####
         rgb, disp, acc, extras = render(
             H=H, W=W, chunk=args.chunk, rays=batch_rays,
+            device=device, pts_progress=pts_progress, dir_progress=dir_progress,
             verbose=i < 10, retraw=True, camera_model=camera_model,
             mode="train", **render_kwargs_train,
         )

@@ -6,6 +6,7 @@ import math
 from torch import Tensor
 from typing import List
 import torch.nn as nn
+import numpy as np
 
 from run_nerf_helpers import (
     get_embedder,
@@ -124,7 +125,7 @@ def create_nerf(
     )
 
 # get_embedder() + Embedder()
-def positional_encoding(inputs, progress, L):
+def positional_encoding(inputs, progress, L, device):
     embed_kwargs = {
         'include_input': True,
         'input_dims': 3,
@@ -156,21 +157,22 @@ def positional_encoding(inputs, progress, L):
         freq_bands = torch.linspace(2. ** 0., 2. ** max_freq, steps=N_freqs)
 
     embed = []
-    for input in inputs:
-        for i, _ in emuerate(freq_bands):
-            for p_fn in [torch.sin, torch.cos]:
-                embed.append(p_fn(input * freq_bands[i]) * weights[i])
+    print(f'---- positional_encoding ----')
+    print(f'inputs.shape: ', inputs.shape)
+    for i, _ in enumerate(freq_bands):
+        for p_fn in [torch.sin, torch.cos]:
+            embed.append(p_fn(inputs * freq_bands[i]) * weights[i])
     
     return torch.cat(embed, dim=-1)
 
-def run_network(inputs, viewdirs, pts_progress, dir_progress, fn, chunk=1024 * 64):
+def run_network(inputs, device, viewdirs, pts_progress, dir_progress, fn, chunk=1024 * 64):
     inputs_flat = torch.reshape(inputs, [-1, inputs.shape[-1]])
-    embedded = positional_encoding(inputs_flat, pts_progress, 10)
+    embedded = positional_encoding(inputs_flat, pts_progress, 10, device)
 
     if viewdirs is not None:
         input_dirs = viewdirs[:, None].expand(inputs.shape)
         input_dirs_flat = torch.reshape(input_dirs, [-1, input_dirs.shape[-1]])
-        embedded_dirs = positional_encoding(input_dirs_flat, dir_progress, 4)
+        embedded_dirs = positional_encoding(input_dirs_flat, dir_progress, 4, device)
         embedded = torch.cat([embedded, embedded_dirs], -1)
 
     outputs_flat = batchify(fn, chunk)(embedded)

@@ -19,7 +19,7 @@ to8b = lambda x : (255*np.clip(x,0,1)).astype(np.uint8)
     
 def render(
     H, W, chunk, rays=None, noisy_focal=None, noisy_extrinsic=None,
-    pts_progress=None, dir_progress=None,
+    device=None, pts_progress=None, dir_progress=None,
     ndc=True, near=0., far=1., use_viewdirs=False, mode=None, 
     camera_model=None, image_idx=None, i_map=None, 
     gt_intrinsic=None, gt_extrinsic=None, transform_align=None, **kwargs
@@ -131,7 +131,7 @@ def render(
         rays = torch.cat([rays, viewdirs], -1)
 
     # Render and reshape
-    all_ret = batchify_rays(rays, pts_progress, dir_progress, **kwargs)
+    all_ret = batchify_rays(rays, device, pts_progress, dir_progress, **kwargs)
     for k in all_ret:
         k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
         all_ret[k] = torch.reshape(all_ret[k], k_sh)
@@ -186,6 +186,7 @@ def render_path(
 
 def render_rays(
     ray_batch,
+    device,
     pts_progress,
     dir_progress,
     network_fn,
@@ -263,7 +264,8 @@ def render_rays(
     pts = rays_o[..., None, :] + rays_d[..., None, :] * z_vals[..., :, None]
 
     # 원래 코드 : raw = network_query_fn(pts, viewdirs, network_fn)
-    raw = run_network(pts, viewdirs, pts_progress, dir_progress, network_fn)
+    print(f'---- render_rays() ----')
+    raw = run_network(pts, device, viewdirs, pts_progress, dir_progress, network_fn)
     rgb_map, disp_map, acc_map, weights, depth_map = raw2outputs(
         raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest
     )
@@ -283,7 +285,7 @@ def render_rays(
 
         run_fn = network_fn if network_fine is None else network_fine
         # 원래 코드 : raw = network_query_fn(pts, viewdirs, run_fn)
-        raw = run_network(pts, viewdirs, pts_progress, dir_progress, run_fn)
+        raw = run_network(pts, device, viewdirs, pts_progress, dir_progress, run_fn)
         rgb_map, disp_map, acc_map, weights, depth_map = raw2outputs(
             raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest
         )
@@ -399,14 +401,17 @@ def ndc_rays_camera(H, W, camera_model, near, rays_o, rays_d):
     
     return rays_o, rays_d
 
-def batchify_rays(rays, pts_progress, dir_progress, chunk=1024 * 32, **kwargs):
+def batchify_rays(rays, device, pts_progress, dir_progress, chunk=1024 * 32, **kwargs):
     """Render rays in smaller minibatches to avoid OOM.
     """
     all_ret = {}
+    print(f'---- batchify_rays() ----')
+    print(f'rays.shape[0]: ', rays.shape[0])
     for i in range(0, rays.shape[0], chunk):
         # 원래 코드 : ret = render_rays(rays_flat[i:i + chunk], **kwargs)
+        print(f'iteration: {i}')
         ret = render_rays(
-            rays[i:i + chunk], pts_progress, dir_progress, **kwargs
+            rays[i:i + chunk], device, pts_progress, dir_progress, **kwargs
         )
         for key in ["rgb0", "rgb1", "rgb_map"]:
             if key in ret.keys():
