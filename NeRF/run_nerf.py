@@ -4,6 +4,7 @@ import imageio
 import time
 import random
 import socket
+import torch
 
 import cv2 as cv
 
@@ -133,7 +134,7 @@ def train():
     else:
         assert False,"Invalid Dataset Selected"
         return
-    
+
     # nerfmm - pts를 위한 progress, dir을 위한 progress 설정
     pts_progress = torch.nn.Parameter(torch.tensor(0.))
     pts_progress.to(device)
@@ -189,7 +190,7 @@ def train():
             file.write(open(args.config, 'r').read())
 
     part = args.camera_part if args.camera_part is not None else "camera"
-    # nerfmm - 모델 생성 for 카메라 파트
+    # 모델 생성
     (
         render_kwargs_train, render_kwargs_test,
         grad_vars, optimizer, camera_model
@@ -230,7 +231,7 @@ def train():
                 savedir=testsavedir, mode="test",
                 camera_model=camera_model, args=args,
                 transform_align=render_poses_expand,
-            )                
+            )
 
             print('Done rendering', testsavedir)
             imageio.mimwrite(os.path.join(testsavedir, 'video.mp4'), to8b(rgbs), fps=30, quality=8)
@@ -251,9 +252,6 @@ def train():
     print("TRAIN views are {}".format(i_train))
     print("VAL views are {}".format(i_val))
     print("TEST views are {}".format(i_test))
-
-    camera_model.ray_o_noise.requires_grad_(False)
-    camera_model.ray_d_noise.requires_grad_(False)
 
     # Train loop 시작
     start = 1
@@ -298,7 +296,7 @@ def train():
         if i < args.precrop_iters:
             dH = int(H // 2 * args.precrop_frac)
             dW = int(W // 2 * args.precrop_frac)
-            
+
             coords = torch.stack(
                 torch.meshgrid(
                     torch.linspace(
@@ -539,7 +537,7 @@ def train():
                     intrinsic=gt_intrinsic,
                     extrinsic=gt_extrinsic
                 )
-                    
+
                 scalars_to_log["test/proj_ray_dist_loss"] = eval_prd
                 print(f"Test projection ray distance loss {eval_prd}")
 
@@ -560,7 +558,7 @@ def train():
                         gt_extrinsic=gt_extrinsic,
                         i_map=i_test,
                         transform_align=gt_transformed_pose_test
-                    )   
+                    )
 
                 test_psnr_list, test_ssim_list, test_lpips_list = [], [], []
 
@@ -745,7 +743,7 @@ def train():
         camera_model=camera_model,
         i_map=i_train
     )
-    train_log_at_end["train_last/PRD"] = train_prd        
+    train_log_at_end["train_last/PRD"] = train_prd
 
     train_savedir = os.path.join(
         basedir, expname, 'trainset'
@@ -767,7 +765,7 @@ def train():
             args=args,
             i_map=i_train
         )
-        
+
     train_psnr_list, train_ssim_list, train_lpips_list = [], [], []
     for idx in range(len(rgbs)):
         viewing_rgbs, viewing_disps = rgbs[idx], disps[idx]

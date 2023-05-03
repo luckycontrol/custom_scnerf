@@ -6,6 +6,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from create_nerf import run_network
+
 from get_rays import (
     get_rays_full_image_no_camera,
     get_rays_full_image_use_camera,
@@ -16,21 +18,19 @@ from get_rays import (
 to8b = lambda x : (255*np.clip(x,0,1)).astype(np.uint8)
     
 def render(
-    H, W, chunk, rays=None, noisy_focal=None, noisy_extrinsic=None, 
+    H, W, chunk, rays=None, noisy_focal=None, noisy_extrinsic=None,
+    pts_progress=None, dir_progress=None,
     ndc=True, near=0., far=1., use_viewdirs=False, mode=None, 
-    camera_model=None, image_idx=None, i_map=None, gt_intrinsic=None, 
-    gt_extrinsic=None, transform_align=None, **kwargs
+    camera_model=None, image_idx=None, i_map=None, 
+    gt_intrinsic=None, gt_extrinsic=None, transform_align=None, **kwargs
 ):
     
     assert not mode is None 
     
-    if not rays is None:
-        # Used during the training phase. Pre-computed rays are used.   
-        if camera_model is None:
-            focal = noisy_focal
+    if rays is not None:
         rays_o, rays_d = rays
 
-    elif not camera_model is None and mode == "train":
+    elif camera_model is not None and mode == "train":
         
         # Used when rendering images in the train set after the training 
         # phase is ended. This rendering uses the trained extrinsic parameters, 
@@ -184,19 +184,23 @@ def render_path(
     return rgbs, disps
 
 
-def render_rays(ray_batch,
-                network_fn,
-                network_query_fn,
-                N_samples,
-                retraw=False,
-                lindisp=False,
-                perturb=0.,
-                N_importance=0,
-                network_fine=None,
-                white_bkgd=False,
-                raw_noise_std=0.,
-                verbose=False,
-                pytest=False):
+def render_rays(
+    ray_batch,
+    pts_progress,
+    dir_progress,
+    network_fn,
+    network_query_fn,
+    N_samples,
+    retraw=False,
+    lindisp=False,
+    perturb=0.,
+    N_importance=0,
+    network_fine=None,
+    white_bkgd=False,
+    raw_noise_std=0.,
+    verbose=False,
+    pytest=False
+):
     """Volumetric rendering.
     Args:
       ray_batch: array of shape [batch_size, ...]. All information necessary
@@ -259,7 +263,8 @@ def render_rays(ray_batch,
 
     pts = rays_o[..., None, :] + rays_d[..., None, :] * z_vals[..., :, None]
 
-    raw = network_query_fn(pts, viewdirs, network_fn)
+    # 원래 코드 : raw = network_query_fn(pts, viewdirs, network_fn)
+    raw = run_network(pts, viewdirs, pts_progress, dir_progress, network_fn)
     rgb_map, disp_map, acc_map, weights, depth_map = raw2outputs(
         raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest
     )
@@ -278,9 +283,8 @@ def render_rays(ray_batch,
         pts = rays_o[..., None, :] + rays_d[..., None, :] * z_vals[..., :, None]
 
         run_fn = network_fn if network_fine is None else network_fine
-        #         raw = run_network(pts, fn=run_fn)
-        raw = network_query_fn(pts, viewdirs, run_fn)
-
+        # 원래 코드 : raw = network_query_fn(pts, viewdirs, run_fn)
+        raw = run_network(pts, viewdirs, pts_progress, dir_progress, run_fn)
         rgb_map, disp_map, acc_map, weights, depth_map = raw2outputs(
             raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest
         )
@@ -396,12 +400,15 @@ def ndc_rays_camera(H, W, camera_model, near, rays_o, rays_d):
     
     return rays_o, rays_d
 
-def batchify_rays(rays_flat, chunk=1024 * 32, **kwargs):
+def batchify_rays(rays, pts_progress, dir_progress, chunk=1024 * 32, **kwargs):
     """Render rays in smaller minibatches to avoid OOM.
     """
     all_ret = {}
     for i in range(0, rays_flat.shape[0], chunk):
-        ret = render_rays(rays_flat[i:i + chunk], **kwargs)
+        # 원래 코드 : ret = render_rays(rays_flat[i:i + chunk], **kwargs)
+        ret = render_rays(
+            rays[i:i + chunk], pts_progress, dir_progress, **kwargs
+        )
         for key in ["rgb0", "rgb1", "rgb_map"]:
             if key in ret.keys():
                 ret[key][ret[key] >= 1.0] = 1.0

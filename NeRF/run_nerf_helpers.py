@@ -82,24 +82,10 @@ def get_embedder(device, part, progress, multires, i=0):
     start = 0.1
     end = 0.5
 
-    # 카메라파라미터 학습 완료 후 3차원 공간 학습을 위한 코드
-    if part == "render":
-        embedder_obj = Embedder(part, **embed_kwargs)
-
-    # 카메라 파라미터 학습을 위한 코드
-    else:
-        alpha = (progress.data - start) / (end - start) * multires
-        k = torch.arange(multires, dtype=torch.float32, device=device)
-
-        # a - k < 0.5 적용
-        # if alpha - k < 0.5:
-        #     weight = 1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()
-        # else:
-        #     weight = (1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
-
-        weight = (1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
-
-        embedder_obj = Embedder(part, weight, **embed_kwargs)
+    alpha = (progress.data - start) / (end - start) * multires
+    k = torch.arange(multires, dtype=torch.float32, device=device)
+    weight = (1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
+    embedder_obj = Embedder(part, weight, **embed_kwargs)    
     
     embed = lambda x, eo=embedder_obj : eo.embed(x)
     return embed, embedder_obj.out_dim
@@ -136,8 +122,6 @@ class NeRF(nn.Module):
         else:
             self.output_linear = DenseLayer(W, output_ch, activation="linear")
 
-    def positional_encoding(self, x):
-        pass
 
     def forward(self, x):
         input_pts, input_views = torch.split(x, [self.input_ch, self.input_ch_views], dim=-1)
