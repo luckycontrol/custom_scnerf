@@ -82,24 +82,10 @@ def get_embedder(device, part, progress, multires, i=0):
     start = 0.1
     end = 0.5
 
-    # 카메라파라미터 학습 완료 후 3차원 공간 학습을 위한 코드
-    if part == "render":
-        embedder_obj = Embedder(part, **embed_kwargs)
-
-    # 카메라 파라미터 학습을 위한 코드
-    else:
-        alpha = (progress.data - start) / (end - start) * multires
-        k = torch.arange(multires, dtype=torch.float32, device=device)
-
-        # a - k < 0.5 적용
-        # if alpha - k < 0.5:
-        #     weight = 1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()
-        # else:
-        #     weight = (1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
-
-        weight = (1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
-
-        embedder_obj = Embedder(part, weight, **embed_kwargs)
+    alpha = (progress.data - start) / (end - start) * multires
+    k = torch.arange(multires, dtype=torch.float32, device=device)
+    weight = (1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
+    embedder_obj = Embedder(part, weight, **embed_kwargs)    
     
     embed = lambda x, eo=embedder_obj : eo.embed(x)
     return embed, embedder_obj.out_dim
@@ -116,6 +102,8 @@ class NeRF(nn.Module):
         self.input_ch_views = input_ch_views
         self.skips = skips
         self.use_viewdirs = use_viewdirs
+
+        self.progress = torch.nn.Parameter(torch.tensor(0.))
         
         self.pts_linears = nn.ModuleList(
             [DenseLayer(input_ch, W, activation="relu")] + [DenseLayer(W, W, activation="relu") if i not in self.skips else DenseLayer(W + input_ch, W, activation="relu") for i in range(D-1)])
@@ -134,30 +122,6 @@ class NeRF(nn.Module):
         else:
             self.output_linear = DenseLayer(W, output_ch, activation="linear")
 
-    # for nerfmm - 가중치를 출력하는 함수
-    def log(self):
-        print(f'[pts_linears]')
-        for i, layer in enumerate(self.pts_linears):
-            print(f'layer {i} weight:')
-            print(f'{layer.weight}')
-        
-        print(f'[views_linears]')
-        for i, layer in enumerate(self.views_linears):
-            print(f'layer {i} weight:')
-            print(f'{layer.weight}')
-        
-        print(f'[output_linear]')
-        print(f'{self.output_linear.weight}')
-
-    # for nerfmm - 가중치를 초기화하는 함수
-    def reset(self):
-        for i, layer in enumerate(self.pts_linears):
-            layer.reset_parameters()
-        
-        for i, layer in enumerate(self.views_linears):
-            layer.reset_parameters()
-        
-        self.output_linear.reset_parameters()
 
     def forward(self, x):
         input_pts, input_views = torch.split(x, [self.input_ch, self.input_ch_views], dim=-1)

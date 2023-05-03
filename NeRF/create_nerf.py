@@ -14,48 +14,27 @@ from run_nerf_helpers import (
 
 from camera_dict import camera_dict
 
-
-def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, netchunk=1024 * 64):
-    """Prepares inputs and applies network 'fn'.
-    """
-    inputs_flat = torch.reshape(inputs, [-1, inputs.shape[-1]])
-    embedded = embed_fn(inputs_flat)
-
-    if viewdirs is not None:
-        input_dirs = viewdirs[:, None].expand(inputs.shape)
-        input_dirs_flat = torch.reshape(input_dirs, [-1, input_dirs.shape[-1]])
-        embedded_dirs = embeddirs_fn(input_dirs_flat)
-        embedded = torch.cat([embedded, embedded_dirs], -1)
-
-    outputs_flat = batchify(fn, netchunk)(embedded)
-    outputs = torch.reshape(outputs_flat, list(inputs.shape[:-1]) + [outputs_flat.shape[-1]])
-    return outputs
-
 def create_nerf(
-    args, part, pts_progress, dir_progress, H, W, noisy_focal=None, noisy_poses=None, mode="train", device="cuda"
+    args, pts_progress, dir_progress, H, W, noisy_focal=None, noisy_poses=None, mode="train", device="cuda"
 ):
     """Instantiate NeRF's MLP model."""
 
     camera_model = None
 
-    embed_fn, input_ch = get_embedder(device, part, pts_progress, args.multires, args.i_embed)
+    input_ch = 3
+    input_ch_views = 3
+    output_ch = 5
 
-    input_ch_views = 0
-    embeddirs_fn = None
-    if args.use_viewdirs:
-        embeddirs_fn, input_ch_views = get_embedder(
-            device,
-            part,
-            dir_progress,
-            args.multires_views, 
-            args.i_embed
-        )
-    output_ch = 5 if args.N_importance > 0 else 4
     skips = [4]
-    model = NeRF(D=args.netdepth, W=args.netwidth, input_ch=input_ch, 
-                 output_ch=output_ch, skips=skips, 
-                 input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs)
-    #model = nn.DataParallel(model).to(device)
+    model = NeRF(
+        D=args.netdepth, 
+        W=args.netwidth, 
+        input_ch=input_ch,
+        input_ch_views=input_ch_views, 
+        output_ch=output_ch, 
+        skips=skips, 
+        use_viewdirs=args.use_viewdirs
+    )
     model = model.to(device)
 
     grad_vars = []
@@ -63,28 +42,26 @@ def create_nerf(
     grad_vars.append(dir_progress)
     grad_vars += list(model.parameters())
     
-    model_fine = None
-    if args.N_importance > 0:
-        model_fine = NeRF(D=args.netdepth_fine, W=args.netwidth_fine,
-            input_ch=input_ch, output_ch=output_ch, skips=skips,
-            input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs)
+    model_fine = NeRF(
+        D=args.netdepth_fine, 
+        W=args.netwidth_fine,
+        input_ch=input_ch,
+        input_ch_views=input_ch_views, 
+        output_ch=output_ch, 
+        skips=skips, 
+        use_viewdirs=args.use_viewdirs
+    )
 
-        #model_fine = nn.DataParallel(model_fine).to(device)
-        model_fine = model_fine.to(device)
+    model_fine = model_fine.to(device)
 
-        grad_vars += list(model_fine.parameters())
-
-    network_query_fn = lambda inputs, viewdirs, network_fn: run_network(
-        inputs, viewdirs, network_fn, embed_fn=embed_fn, 
-        embeddirs_fn=embeddirs_fn, netchunk=args.netchunk_per_gpu * args.n_gpus)
+    grad_vars += list(model_fine.parameters())
     
     render_kwargs_train = {
-        'network_query_fn': network_query_fn,
         'perturb': args.perturb,
         'N_importance': args.N_importance,
+        'network_fn': model,
         'network_fine': model_fine,
         'N_samples': args.N_samples,
-        'network_fn': model,
         'use_viewdirs': args.use_viewdirs,
         'white_bkgd': args.white_bkgd,
         'raw_noise_std': args.raw_noise_std,
@@ -102,114 +79,101 @@ def create_nerf(
     render_kwargs_test['perturb'] = False
     render_kwargs_test['raw_noise_std'] = 0.
         
-    # 카메라 모델 생성: 카메라 파라미터 학습에만 사용
-    if part == "camera":
-        cw_init = W / 2
-        ch_init = H / 2
-        fx_init = W if args.run_without_colmap != "none" else noisy_focal
-        fy_init = H if args.run_without_colmap != "none" else noisy_focal
-        
-        intrinsic_init = torch.tensor(
-            [
-                [fx_init, 0, cw_init, 0],
-                [0, fy_init, ch_init, 0],
-                [0, 0, 1, 0],
-                [0, 0, 0, 1]
-            ]
-        )
-        
-        camera_kwargs = {
-            "intrinsics": intrinsic_init,
-            "extrinsics": noisy_poses,
-            "args": args,
-            "H": H,
-            "W": W,
-        }
-        
-        with torch.no_grad():
-            camera_model = camera_dict["pinhole_rot_noise_10k_rayo_rayd"](**camera_kwargs)
-            camera_model = camera_model.cuda()
-        
-        grad_vars += list(camera_model.parameters())
+    cw_init = W / 2
+    ch_init = H / 2
+    fx_init = W if args.run_without_colmap != "none" else noisy_focal
+    fy_init = H if args.run_without_colmap != "none" else noisy_focal
+    
+    intrinsic_init = torch.tensor(
+        [
+            [fx_init, 0, cw_init, 0],
+            [0, fy_init, ch_init, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+        ]
+    )
+    
+    camera_kwargs = {
+        "intrinsics": intrinsic_init,
+        "extrinsics": noisy_poses,
+        "args": args,
+        "H": H,
+        "W": W,
+    }
+    
+    with torch.no_grad():
+        camera_model = camera_dict["pinhole_rot_noise_10k_rayo_rayd"](**camera_kwargs)
+        camera_model = camera_model.cuda()
+    
+    grad_vars += list(camera_model.parameters())
 
     # Create optimizer
-    if args.use_custom_optim:
-        optimizer = CustomAdamOptimizer(
-            params=grad_vars, lr=args.lrate, betas=(0.9, 0.999),
-            weight_decay=args.non_linear_weight_decay, H=H, W=W, args=args
-        )
-    else:
-        optimizer = torch.optim.Adam(
-            params=grad_vars, lr=args.lrate, betas=(0.9, 0.999)
-        )
-        print("YES?")
-    ##########################
+    optimizer = torch.optim.Adam(
+        params=grad_vars, lr=args.lrate, betas=(0.9, 0.999)
+    )
+    #########################
 
-    # start = 0
-    # basedir = args.basedir
-    # expname = args.expname
+    return (
+        render_kwargs_train,
+        render_kwargs_test,
+        grad_vars,
+        optimizer,
+        camera_model
+    )
 
-    # Load checkpoints
-    # if args.ft_path is not None and args.ft_path != 'None':
-    #     ckpts = [args.ft_path]
-    # else:
-    #     ckpts = [
-    #         os.path.join(basedir, expname, f) for f in sorted(
-    #             os.listdir(os.path.join(basedir, expname))
-    #         ) if 'tar' in f
-    #     ]
-    # if part == "camera":
-    #     if args.ft_path is not None and args.ft_path != 'None':
-    #         ckpts = [args.ft_path]
-    #     else:
-    #         ckpts = [
-    #             os.path.join(basedir, expname, f) for f in sorted(
-    #                 os.listdir(os.path.join(basedir, expname))
-    #             ) if 'tar' in f
-    #         ]
+# get_embedder() + Embedder()
+def positional_encoding(inputs, progress, L):
+    embed_kwargs = {
+        'include_input': True,
+        'input_dims': 3,
+        'max_freq_log2': L - 1,
+        'num_freqs': L,
+        'log_sampling': True,
+    }
 
-    # print('Found ckpts', ckpts)
+    start = 0.1
+    end = 0.5
+
+    alpha = (progress.data - start) / (end - start) * L
+    k = torch.arange(L, dtype=torch.float32, device=device)
+    weights = (1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
+
+    d = 3
+    out_dim = 0
+
+    if embed_kwargs['include_input']:
+        out_dim += d
+
+    max_freq = embed_kwargs['max_freq_log2']
+    N_freqs = embed_kwargs['num_freqs']
+
+    if embed_kwargs['log_sampling']:
+        freq_bands = 2. ** torch.linspace(0., max_freq, steps=N_freqs)
     
-    # if len(ckpts) > 0 and not args.no_reload:
-    #     ckpt_path = ckpts[-1]
-    #     print('Reloading from', ckpt_path)
-    #     ckpt = torch.load(ckpt_path)
-
-    #     start = ckpt['global_step']
-        
-    #     pretrained_dict = ckpt['optimizer_state_dict']
-    #     optim_dict = optimizer.state_dict()
-    #     optim_dict["state"].update(pretrained_dict["state"])
-    #     optimizer.load_state_dict(optim_dict)
-
-    #     # Load model
-    #     model.load_state_dict(ckpt['network_fn_state_dict'])
-    #     if not model_fine is None:
-    #         model_fine.load_state_dict(ckpt['network_fine_state_dict'])
-
-    #     if not camera_model is None and "camera_model" in ckpt.keys():
-    #         camera_model.load_state_dict(ckpt["camera_model"])
-
-
-    # 카메라 파라미터 학습에만 사용
-    if part == "camera":
-        return (
-            render_kwargs_train, 
-            render_kwargs_test, 
-            grad_vars, 
-            optimizer, 
-            camera_model
-        )
-
-    # 나머지 파트는 여기서 리턴
     else:
-        return (
-            render_kwargs_train, 
-            render_kwargs_test, 
-            grad_vars, 
-            optimizer,
-        )
+        freq_bands = torch.linspace(2. ** 0., 2. ** max_freq, steps=N_freqs)
 
+    embed = []
+    for input in inputs:
+        for i, _ in emuerate(freq_bands):
+            for p_fn in [torch.sin, torch.cos]:
+                embed.append(p_fn(input * freq_bands[i]) * weights[i])
+    
+    return torch.cat(embed, dim=-1)
+
+def run_network(inputs, viewdirs, pts_progress, dir_progress, fn, chunk=1024 * 64):
+    inputs_flat = torch.reshape(inputs, [-1, inputs.shape[-1]])
+    embedded = positional_encoding(inputs_flat, pts_progress, 10)
+
+    if viewdirs is not None:
+        input_dirs = viewdirs[:, None].expand(inputs.shape)
+        input_dirs_flat = torch.reshape(input_dirs, [-1, input_dirs.shape[-1]])
+        embedded_dirs = positional_encoding(input_dirs_flat, dir_progress, 4)
+        embedded = torch.cat([embedded, embedded_dirs], -1)
+
+    outputs_flat = batchify(fn, chunk)(embedded)
+    outputs = torch.reshape(outputs_flat, list(inputs.shape[:-1]) + [outputs_flat.shape[-1]])
+    return outputs
 
 def batchify(fn, chunk):
     """Constructs a version of 'fn' that applies to smaller batches.
