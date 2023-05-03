@@ -131,7 +131,7 @@ def render(
         rays = torch.cat([rays, viewdirs], -1)
 
     # Render and reshape
-    all_ret = batchify_rays(rays, chunk, **kwargs)
+    all_ret = batchify_rays(rays, pts_progress, dir_progress, **kwargs)
     for k in all_ret:
         k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
         all_ret[k] = torch.reshape(all_ret[k], k_sh)
@@ -189,7 +189,6 @@ def render_rays(
     pts_progress,
     dir_progress,
     network_fn,
-    network_query_fn,
     N_samples,
     retraw=False,
     lindisp=False,
@@ -404,7 +403,7 @@ def batchify_rays(rays, pts_progress, dir_progress, chunk=1024 * 32, **kwargs):
     """Render rays in smaller minibatches to avoid OOM.
     """
     all_ret = {}
-    for i in range(0, rays_flat.shape[0], chunk):
+    for i in range(0, rays.shape[0], chunk):
         # 원래 코드 : ret = render_rays(rays_flat[i:i + chunk], **kwargs)
         ret = render_rays(
             rays[i:i + chunk], pts_progress, dir_progress, **kwargs

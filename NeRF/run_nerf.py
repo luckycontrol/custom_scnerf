@@ -195,7 +195,7 @@ def train():
         render_kwargs_train, render_kwargs_test,
         grad_vars, optimizer, camera_model
     ) = create_nerf(
-        args, part, pts_progress, dir_progress, H, W, noisy_focal, noisy_train_poses, mode="train", device=device
+        args, pts_progress, dir_progress, H, W, noisy_focal, noisy_train_poses, mode="train", device=device
     )
 
     bds_dict = {

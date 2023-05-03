@@ -12,6 +12,8 @@ from run_nerf_helpers import (
     NeRF,
 )
 
+import sys
+sys.path.append('../model')
 from camera_dict import camera_dict
 
 def create_nerf(
