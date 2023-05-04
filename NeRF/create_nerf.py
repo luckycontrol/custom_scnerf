@@ -18,17 +18,19 @@ sys.path.append('../model')
 from camera_dict import camera_dict
 
 def create_nerf(
-    args, pts_progress, dir_progress, H, W, noisy_focal=None, noisy_poses=None, mode="train", device="cuda"
+    args, H, W, noisy_focal=None, noisy_poses=None, mode="train", device="cuda"
 ):
     """Instantiate NeRF's MLP model."""
 
     camera_model = None
 
-    input_ch = 60
-    input_ch_views = 24
+    input_ch = 63
+    input_ch_views = 27
     output_ch = 5
 
     skips = [4]
+    grad_vars = []
+
     model = NeRF(
         D=args.netdepth, 
         W=args.netwidth, 
@@ -39,10 +41,6 @@ def create_nerf(
         use_viewdirs=args.use_viewdirs
     )
     model = model.to(device)
-
-    grad_vars = []
-    grad_vars.append(pts_progress)
-    grad_vars.append(dir_progress)
     grad_vars += list(model.parameters())
     
     model_fine = NeRF(
@@ -54,9 +52,7 @@ def create_nerf(
         skips=skips, 
         use_viewdirs=args.use_viewdirs
     )
-
     model_fine = model_fine.to(device)
-
     grad_vars += list(model_fine.parameters())
     
     render_kwargs_train = {
@@ -128,7 +124,6 @@ def create_nerf(
 def positional_encoding(inputs, progress, L, device):
     embed_kwargs = {
         'include_input': True,
-        'input_dims': 3,
         'max_freq_log2': L - 1,
         'num_freqs': L,
         'log_sampling': True,
@@ -141,11 +136,10 @@ def positional_encoding(inputs, progress, L, device):
     k = torch.arange(L, dtype=torch.float32, device=device)
     weights = (1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
 
-    d = 3
-    out_dim = 0
+    embed_fns = []
 
     if embed_kwargs['include_input']:
-        out_dim += d
+        embed_fns.append(lambda x: x)
 
     max_freq = embed_kwargs['max_freq_log2']
     N_freqs = embed_kwargs['num_freqs']
@@ -154,20 +148,17 @@ def positional_encoding(inputs, progress, L, device):
         freq_bands = 2. ** torch.linspace(0., max_freq, steps=N_freqs)
     else:
         freq_bands = torch.linspace(2. ** 0., 2. ** max_freq, steps=N_freqs)
-
-    embed_fns = []
     
     for i, _ in enumerate(freq_bands):
         for p_fn in [torch.sin, torch.cos]:
             embed_fns.append(lambda x, p_fn=p_fn, freq=freq_bands[i], weight=weights[i]: p_fn(x * freq) * weight)
-            out_dim += d
     
-    outputs = [fn(inputs) for fn in embed_fns]
-    outputs = torch.cat(outputs, dim=-1)
+    embedded = [fn(inputs) for fn in embed_fns]
+    embedded = torch.cat(embedded, dim=-1)
 
-    return outputs
+    return embedded
 
-def run_network(inputs, device, viewdirs, pts_progress, dir_progress, fn, chunk=1024 * 64):
+def run_network(inputs, viewdirs, device, pts_progress, dir_progress, fn, chunk=1024 * 64):
     inputs_flat = torch.reshape(inputs, [-1, inputs.shape[-1]])
     embedded = positional_encoding(inputs_flat, pts_progress, 10, device)
 

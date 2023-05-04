@@ -195,8 +195,11 @@ def train():
         render_kwargs_train, render_kwargs_test,
         grad_vars, optimizer, camera_model
     ) = create_nerf(
-        args, pts_progress, dir_progress, H, W, noisy_focal, noisy_train_poses, mode="train", device=device
+        args, H, W, noisy_focal, noisy_train_poses, mode="train", device=device
     )
+
+    grad_vars.append(pts_progress)
+    grad_vars.append(dir_progress)
 
     bds_dict = {
         'near': near,

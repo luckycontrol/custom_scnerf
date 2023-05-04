@@ -50,7 +50,7 @@ def render(
             extrinsic=noisy_extrinsic[idx_in_camera_param]
         )
 
-    elif not camera_model is None and mode in ["val", "test"]:
+    elif camera_model is not None and mode in ["val", "test"]:
 
         # Used when rendering images in the val set or the test set after
         # the training phase is ended. It uses the ground truth extrinsic
@@ -65,39 +65,6 @@ def render(
             W=W,
             camera_model=camera_model,
             extrinsic=transform_align,
-        )
-
-    elif camera_model is None and mode == "train":
-        
-        # Used when rendering images in the train set after the training phase
-        # is ended. It uses the noisy camera parameters that are used in the 
-        # training phase.
-        
-        assert not noisy_focal is None
-        assert not noisy_extrinsic is None
-        focal = noisy_focal
-        rays_o, rays_d = get_rays_full_image_no_camera(
-            H=H, 
-            W=W, 
-            focal=focal, 
-            extrinsic=noisy_extrinsic[image_idx]
-        )
-        
-    elif camera_model is None and mode in ["val", "test"]:
-        
-        # Used when redering images in the val set or the test set after the
-        # training phase is ended. It uses the ground truth information.
-        
-        assert not gt_extrinsic is None
-        assert noisy_focal is None
-        assert noisy_extrinsic is None
-        
-        focal = gt_intrinsic[0][0].item()
-        rays_o, rays_d = get_rays_full_image_no_camera(
-            H=H, 
-            W=W, 
-            focal=focal,
-            extrinsic=gt_extrinsic[image_idx]
         )
 
     else:
@@ -264,7 +231,7 @@ def render_rays(
     pts = rays_o[..., None, :] + rays_d[..., None, :] * z_vals[..., :, None]
 
     # 원래 코드 : raw = network_query_fn(pts, viewdirs, network_fn)
-    raw = run_network(pts, device, viewdirs, pts_progress, dir_progress, network_fn)
+    raw = run_network(pts, viewdirs, device, pts_progress, dir_progress, network_fn)
     rgb_map, disp_map, acc_map, weights, depth_map = raw2outputs(
         raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest
     )
@@ -284,7 +251,7 @@ def render_rays(
 
         run_fn = network_fn if network_fine is None else network_fine
         # 원래 코드 : raw = network_query_fn(pts, viewdirs, run_fn)
-        raw = run_network(pts, device, viewdirs, pts_progress, dir_progress, run_fn)
+        raw = run_network(pts, viewdirs, device, pts_progress, dir_progress, run_fn)
         rgb_map, disp_map, acc_map, weights, depth_map = raw2outputs(
             raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest
         )
