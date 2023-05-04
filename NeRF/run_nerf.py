@@ -680,20 +680,14 @@ def train():
 
             # TODO
             with torch.no_grad():
-                if camera_model is None:
-                    rgb, disp, acc, extras = render(
-                        H=H, W=W, chunk=args.chunk, gt_intrinsic=gt_intrinsic,
-                        gt_extrinsic=gt_extrinsic, mode="val", image_idx=img_i,
-                        **render_kwargs_test
-                    )
-                else:
-                    rgb, disp, acc, extras = render(
-                        H=H, W=W, chunk=args.chunk, gt_intrinsic=gt_intrinsic,
-                        gt_extrinsic=gt_extrinsic, mode="val", i_map=i_val,
-                        image_idx=img_i, camera_model=camera_model,
-                        transform_align=gt_transformed_pose_val[img_i_idx[0][0]],
-                        **render_kwargs_test
-                    )
+                rgb, disp, acc, extras = render(
+                    H=H, W=W, chunk=args.chunk,
+                    device=device, pts_progress=pts_progress, dir_progress=dir_progress,
+                    gt_intrinsic=gt_intrinsic, gt_extrinsic=gt_extrinsic, mode="val", i_map=i_val,
+                    image_idx=img_i, camera_model=camera_model,
+                    transform_align=gt_transformed_pose_val[img_i_idx[0][0]],
+                    **render_kwargs_test
+                )
 
             rgb = rgb.reshape(H, W, 3)
             disp = disp.reshape(H, W)
