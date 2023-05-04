@@ -24,8 +24,8 @@ def create_nerf(
 
     camera_model = None
 
-    input_ch = 3
-    input_ch_views = 3
+    input_ch = 60
+    input_ch_views = 24
     output_ch = 5
 
     skips = [4]
@@ -152,18 +152,20 @@ def positional_encoding(inputs, progress, L, device):
 
     if embed_kwargs['log_sampling']:
         freq_bands = 2. ** torch.linspace(0., max_freq, steps=N_freqs)
-    
     else:
         freq_bands = torch.linspace(2. ** 0., 2. ** max_freq, steps=N_freqs)
 
-    embed = []
-    print(f'---- positional_encoding ----')
-    print(f'inputs.shape: ', inputs.shape)
+    embed_fns = []
+    
     for i, _ in enumerate(freq_bands):
         for p_fn in [torch.sin, torch.cos]:
-            embed.append(p_fn(inputs * freq_bands[i]) * weights[i])
+            embed_fns.append(lambda x, p_fn=p_fn, freq=freq_bands[i], weight=weights[i]: p_fn(x * freq) * weight)
+            out_dim += d
     
-    return torch.cat(embed, dim=-1)
+    outputs = [fn(inputs) for fn in embed_fns]
+    outputs = torch.cat(outputs, dim=-1)
+
+    return outputs
 
 def run_network(inputs, device, viewdirs, pts_progress, dir_progress, fn, chunk=1024 * 64):
     inputs_flat = torch.reshape(inputs, [-1, inputs.shape[-1]])

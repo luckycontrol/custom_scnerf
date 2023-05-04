@@ -497,6 +497,8 @@ def train():
             )
             scalars_to_log.update(scalar_dict)
             images_to_log.update(image_dict)
+            scalars_to_log['pts_progress'] = pts_progress.data
+            scalars_to_log['dir_progress'] = dir_progress.data
 
         # NOTE: IMPORTANT!
         ###   update learning rate   ###

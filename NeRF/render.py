@@ -264,7 +264,6 @@ def render_rays(
     pts = rays_o[..., None, :] + rays_d[..., None, :] * z_vals[..., :, None]
 
     # 원래 코드 : raw = network_query_fn(pts, viewdirs, network_fn)
-    print(f'---- render_rays() ----')
     raw = run_network(pts, device, viewdirs, pts_progress, dir_progress, network_fn)
     rgb_map, disp_map, acc_map, weights, depth_map = raw2outputs(
         raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest
@@ -405,11 +404,8 @@ def batchify_rays(rays, device, pts_progress, dir_progress, chunk=1024 * 32, **k
     """Render rays in smaller minibatches to avoid OOM.
     """
     all_ret = {}
-    print(f'---- batchify_rays() ----')
-    print(f'rays.shape[0]: ', rays.shape[0])
     for i in range(0, rays.shape[0], chunk):
         # 원래 코드 : ret = render_rays(rays_flat[i:i + chunk], **kwargs)
-        print(f'iteration: {i}')
         ret = render_rays(
             rays[i:i + chunk], device, pts_progress, dir_progress, **kwargs
         )
