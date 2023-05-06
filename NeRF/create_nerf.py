@@ -99,24 +99,18 @@ def create_nerf(
         "H": H,
         "W": W,
     }
-    
+
     with torch.no_grad():
         camera_model = camera_dict["pinhole_rot_noise_10k_rayo_rayd"](**camera_kwargs)
         camera_model = camera_model.cuda()
     
     grad_vars += list(camera_model.parameters())
-
-    # Create optimizer
-    optimizer = torch.optim.Adam(
-        params=grad_vars, lr=args.lrate, betas=(0.9, 0.999)
-    )
     #########################
 
     return (
         render_kwargs_train,
         render_kwargs_test,
         grad_vars,
-        optimizer,
         camera_model
     )
 

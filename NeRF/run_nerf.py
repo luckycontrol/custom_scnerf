@@ -193,13 +193,18 @@ def train():
     # 모델 생성
     (
         render_kwargs_train, render_kwargs_test,
-        grad_vars, optimizer, camera_model
+        grad_vars, camera_model
     ) = create_nerf(
         args, H, W, noisy_focal, noisy_train_poses, mode="train", device=device
     )
 
     grad_vars.append(pts_progress)
     grad_vars.append(dir_progress)
+
+    # Create optimizer
+    optimizer = torch.optim.Adam(
+        params=grad_vars, lr=args.lrate, betas=(0.9, 0.999)
+    )
 
     bds_dict = {
         'near': near,
@@ -493,15 +498,13 @@ def train():
             train_loss.backward()
             optimizer.step()
 
-        if not camera_model is None and global_step % 2000 == 1:
+        if camera_model is not None and global_step % 2000 == 1:
             scalar_dict, image_dict = camera_model.log_noises(
                 gt_intrinsic,
                 gt_extrinsic[i_train],
             )
             scalars_to_log.update(scalar_dict)
             images_to_log.update(image_dict)
-            scalars_to_log['pts_progress'] = pts_progress.data
-            scalars_to_log['dir_progress'] = dir_progress.data
 
         # NOTE: IMPORTANT!
         ###   update learning rate   ###
@@ -705,51 +708,31 @@ def train():
 
             print("VAL PSNR {}: {}".format(img_i, val_psnr.item()))
 
-            if camera_model is None:
-                eval_prd = projected_ray_distance_evaluation(
-                    images=images,
-                    index_list=i_val,
-                    args=args,
-                    ray_fun=get_rays_kps_no_camera,
-                    ray_fun_gt=get_rays_kps_no_camera,
-                    part=part,
-                    H=H,
-                    W=W,
-                    mode="val",
-                    matcher=matcher,
-                    gt_intrinsic=gt_intrinsic,
-                    gt_extrinsic=gt_extrinsic,
-                    method="NeRF",
-                    device=device,
-                    intrinsic=gt_intrinsic,
-                    extrinsic=gt_extrinsic,
-                )
-
-            else:
-                eval_prd = projected_ray_distance_evaluation(
-                    images=images,
-                    index_list=i_val,
-                    args=args,
-                    ray_fun=get_rays_kps_use_camera,
-                    ray_fun_gt=get_rays_kps_no_camera,
-                    part=part,
-                    H=H,
-                    W=W,
-                    mode="val",
-                    matcher=matcher,
-                    gt_intrinsic=gt_intrinsic,
-                    gt_extrinsic=gt_extrinsic,
-                    method="NeRF",
-                    device=device,
-                    camera_model=camera_model
-                )
-
+            eval_prd = projected_ray_distance_evaluation(
+                images=images,
+                index_list=i_val,
+                args=args,
+                ray_fun=get_rays_kps_use_camera,
+                ray_fun_gt=get_rays_kps_no_camera,
+                part=part,
+                H=H,
+                W=W,
+                mode="val",
+                matcher=matcher,
+                gt_intrinsic=gt_intrinsic,
+                gt_extrinsic=gt_extrinsic,
+                method="NeRF",
+                device=device,
+                camera_model=camera_model
+            )
+                
             scalars_to_log["val/proj_ray_dist_loss"] = eval_prd
 
             print("Validation PRD : {}".format(eval_prd))
+            scalars_to_log['pts_progress'] = pts_progress.data
+            scalars_to_log['dir_progress'] = dir_progress.data
 
         # Logging Step
-
         for key, val in images_to_log.items():
             scalars_to_log[key] = wandb.Image(val)
         wandb.log(scalars_to_log)
