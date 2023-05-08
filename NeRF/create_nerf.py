@@ -123,12 +123,25 @@ def positional_encoding(inputs, progress, L, device):
         'log_sampling': True,
     }
 
-    start = 0.1
-    end = 0.5
+    # start = 0.1
+    # end = 0.5
 
-    alpha = (progress.data - start) / (end - start) * L
+    # alpha = (progress.data - start) / (end - start) * L
+    # k = torch.arange(L, dtype=torch.float32, device=device)
+    # weights = (1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
+    
+    progress.data.clamp_(min=0, max=1)
+    progress = progress * L
     k = torch.arange(L, dtype=torch.float32, device=device)
-    weights = (1 - (alpha - k).clamp_(min=0, max=1).mul_(np.pi).cos_()) / 2
+    weights = progress - k
+
+    for i, weight in enumerate(weights):
+        if weight < 0:
+            weights[i] = 0
+        elif weight > 1:
+            weights[i] = 1
+        else:
+            weights[i] = (1 - torch.cos(weight * np.pi)) / 2
 
     embed_fns = []
 
