@@ -198,9 +198,6 @@ def train():
         args, H, W, noisy_focal, noisy_train_poses, mode="train", device=device
     )
 
-    grad_vars.append(pts_progress)
-    grad_vars.append(dir_progress)
-
     # Create optimizer
     optimizer = torch.optim.Adam(
         params=grad_vars, lr=args.lrate, betas=(0.9, 0.999)
@@ -399,7 +396,7 @@ def train():
         #####  Core optimization loop  #####
         rgb, disp, acc, extras = render(
             H=H, W=W, chunk=args.chunk, rays=batch_rays,
-            device=device, pts_progress=pts_progress, dir_progress=dir_progress,
+            device=device,
             verbose=i < 10, retraw=True, camera_model=camera_model,
             mode="train", **render_kwargs_train,
         )
@@ -688,7 +685,7 @@ def train():
             with torch.no_grad():
                 rgb, disp, acc, extras = render(
                     H=H, W=W, chunk=args.chunk,
-                    device=device, pts_progress=pts_progress, dir_progress=dir_progress,
+                    device=device,
                     gt_intrinsic=gt_intrinsic, gt_extrinsic=gt_extrinsic, mode="val", i_map=i_val,
                     image_idx=img_i, camera_model=camera_model,
                     transform_align=gt_transformed_pose_val[img_i_idx[0][0]],
@@ -729,8 +726,10 @@ def train():
             scalars_to_log["val/proj_ray_dist_loss"] = eval_prd
 
             print("Validation PRD : {}".format(eval_prd))
-            scalars_to_log['pts_progress'] = pts_progress.data
-            scalars_to_log['dir_progress'] = dir_progress.data
+            scalars_to_log['network_fn_pts_progress'] = render_kwargs_train['network_fn'].pts_progress.data
+            scalars_to_log['network_fn_dir_progress'] = render_kwargs_train['network_fn'].dir_progress.data
+            scalars_to_log['network_fine_pts_progress'] = render_kwargs_train['network_fine'].pts_progress.data
+            scalars_to_log['network_fine_dir_progress'] = render_kwargs_train['network_fine'].dir_progress.data
 
         # Logging Step
         for key, val in images_to_log.items():

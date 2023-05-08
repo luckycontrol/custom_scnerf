@@ -152,14 +152,14 @@ def positional_encoding(inputs, progress, L, device):
 
     return embedded
 
-def run_network(inputs, viewdirs, device, pts_progress, dir_progress, fn, chunk=1024 * 64):
+def run_network(inputs, viewdirs, device, fn, chunk=1024 * 64):
     inputs_flat = torch.reshape(inputs, [-1, inputs.shape[-1]])
-    embedded = positional_encoding(inputs_flat, pts_progress, 10, device)
+    embedded = positional_encoding(inputs_flat, fn.pts_progress, 10, device)
 
     if viewdirs is not None:
         input_dirs = viewdirs[:, None].expand(inputs.shape)
         input_dirs_flat = torch.reshape(input_dirs, [-1, input_dirs.shape[-1]])
-        embedded_dirs = positional_encoding(input_dirs_flat, dir_progress, 4, device)
+        embedded_dirs = positional_encoding(input_dirs_flat, fn.dir_progress, 4, device)
         embedded = torch.cat([embedded, embedded_dirs], -1)
 
     outputs_flat = batchify(fn, chunk)(embedded)
