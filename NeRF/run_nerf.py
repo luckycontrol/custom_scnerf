@@ -133,7 +133,7 @@ def train():
 
     elif args.dataset_type == 'real':
         (
-            images, noisy_extrinsic, render_poses, hwf, i_split, gt_camera_info
+            images, noisy_extrinsic, render_poses, hwf, cx, cy, i_split, gt_camera_info
         ) = load_real_data(args.datadir, args.half_res, args, args.testskip)
 
         print("Loaded real dataset")
@@ -167,10 +167,15 @@ def train():
             image_pairs = \
                 image_pair_candidates(noisy_train_poses, args, i_train)
 
-    # Cast intrinsics to right types
-    H, W, noisy_focal = hwf
-    H, W = int(H), int(W)
-    hwf = [H, W, noisy_focal]
+    if len(hwf) == 4:
+        H, W, noisy_focal_x, noisy_focal_y = hwf
+        H, W = int(H), int(W)
+        hwf = [H, W, noisy_focal_x, noisy_focal_y]
+
+    else:
+        H, W, noisy_focal = hwf
+        H, W = int(H), int(W)
+        hwf = [H, W, noisy_focal]
 
     # colmap을 사용하지 않을 경우
     if args.run_without_colmap:
@@ -184,14 +189,24 @@ def train():
         )
     # colmap을 사용할 경우
     else:
-        noisy_initial_intrinsic = torch.tensor(
-            [
-                [noisy_focal, 0, W/2, 0],
-                [0, noisy_focal, H/2, 0],
-                [0, 0, 1, 0],
-                [0, 0, 0, 1]
-            ]
-        )
+        if len(hwf) == 4:
+            noisy_initial_intrinsic = torch.tensor(
+                [
+                    [noisy_focal_x, 0, cx, 0],
+                    [0, noisy_focal_y, cy, 0],
+                    [0, 0, 1, 0],
+                    [0, 0, 0, 1],
+                ]
+            )
+        else:
+            noisy_initial_intrinsic = torch.tensor(
+                [
+                    [noisy_focal, 0, W/2, 0],
+                    [0, noisy_focal, H/2, 0],
+                    [0, 0, 1, 0],
+                    [0, 0, 0, 1]
+                ]
+            )
 
     # Create log dir and copy the config file
     basedir = args.basedir
@@ -208,13 +223,23 @@ def train():
             file.write(open(args.config, 'r').read())
 
     part = args.camera_part if args.camera_part is not None else "camera"
-    # 모델 생성
-    (
-        render_kwargs_train, render_kwargs_test,
-        grad_vars, optimizer, camera_model
-    ) = create_nerf(
-        args, part, pts_progress, dir_progress, H, W, noisy_focal, noisy_train_poses, mode="train", device=device
-    )
+    
+
+    if len(hwf) == 4:
+        (
+            render_kwargs_train, render_kwargs_test,
+            grad_vars, optimizer, camera_model
+        ) = create_nerf(
+            args, part, pts_progress, dir_progress, H, W, [noisy_focal_x, noisy_focal_y], center=[cx, cy], noisy_poses=noisy_train_poses, mode="train", device=device
+        )
+    else:
+        # 모델 생성
+        (
+            render_kwargs_train, render_kwargs_test,
+            grad_vars, optimizer, camera_model
+        ) = create_nerf(
+            args, part, pts_progress, dir_progress, H, W, noisy_focal, noisy_poses=noisy_train_poses, mode="train", device=device
+        )
 
     bds_dict = {
         'near': near,

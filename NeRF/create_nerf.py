@@ -32,7 +32,7 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, netchunk=1024 * 64
     return outputs
 
 def create_nerf(
-    args, part, pts_progress, dir_progress, H, W, noisy_focal=None, noisy_poses=None, mode="train", device="cuda"
+    args, part, pts_progress, dir_progress, H, W, noisy_focal=None, center=None, noisy_poses=None,  mode="train", device="cuda"
 ):
     """Instantiate NeRF's MLP model."""
 
@@ -104,10 +104,16 @@ def create_nerf(
         
     # 카메라 모델 생성: 카메라 파라미터 학습에만 사용
     if part == "camera":
-        cw_init = W / 2
-        ch_init = H / 2
-        fx_init = W if args.run_without_colmap != "none" else noisy_focal
-        fy_init = H if args.run_without_colmap != "none" else noisy_focal
+        cw_init = W / 2 if center is None else center[0]
+        ch_init = H / 2 if center is None else center[1]
+
+        if args.run_without_colmap != "none":
+            fx_init = W
+            fy_init = H
+        
+        else:
+            fx_init = noisy_focal[0] if isinstance(noisy_focal, list) else noisy_focal
+            fy_init = noisy_focal[1] if isinstance(noisy_focal, list) else noisy_focal
         
         intrinsic_init = torch.tensor(
             [

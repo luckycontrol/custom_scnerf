@@ -73,8 +73,10 @@ def load_real_data(basedir, half_res=False, args=None, testskip=1):
 
         imgs = (np.array(imgs) / 255.).astype(np.float32)
         poses = np.array(poses).astype(np.float32)
-
         counts.append(counts[-1] + imgs.shape[0])
+
+        all_imgs.append(imgs)
+        all_poses.append(poses)
 
     i_split = [np.arange(counts[i], counts[i+1]) for i in range(3)]
     i_train, _, _ = i_split
@@ -83,15 +85,16 @@ def load_real_data(basedir, half_res=False, args=None, testskip=1):
     poses = np.concatenate(all_poses, 0)
 
     H, W = imgs[0].shape[:2]
-    focal_x = float(meta["fl_x"])
-    focal_y = float(meta["fl_y"])
-    c_x = float(meta["c_x"])
-    c_y = float(meta["c_y"])
+    focal_x = float(metas["train"]["fl_x"])
+    focal_y = float(metas["train"]["fl_y"])
+    cx = float(metas["train"]["cx"])
+    cy = float(metas["train"]["cy"])
 
     noisy_focal_x = focal_x
     noisy_focal_y = focal_y
     if args.initial_noise_size_intrinsic != 0.0:
         noisy_focal_x = focal_x * (1 + args.initial_noise_size_intrinsic)
+        noisy_focal_y = focal_y * (1 + args.initial_noise_size_intrinsic)
         print("Starting with noise in intrinsic parameters")
     
     poses_update = poses.copy()
@@ -137,8 +140,8 @@ def load_real_data(basedir, half_res=False, args=None, testskip=1):
             poses_update[i_train, :3, :3] = 0.
         
     intrinsic_gt = torch.tensor([
-        [focal_x, 0, c_x, 0],
-        [0, focal_y, c_y, 0],
+        [focal_x, 0, cx, 0],
+        [0, focal_y, cy, 0],
         [0, 0, 1, 0],
         [0, 0, 0, 1]
     ]).cuda().float()
@@ -157,4 +160,4 @@ def load_real_data(basedir, half_res=False, args=None, testskip=1):
 
     extrinsic_gt = torch.from_numpy(poses).cuda().float()
 
-    return imgs, poses_update, render_poses, [H, W, noisy_focal], i_split, (intrinsic_gt, extrinsic_gt)
+    return imgs, poses_update, render_poses, [H, W, noisy_focal_x, noisy_focal_y], cx, cy, i_split, (intrinsic_gt, extrinsic_gt)
