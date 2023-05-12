@@ -64,7 +64,7 @@ def load_real_data(basedir, half_res=False, args=None, testskip=1):
             skip = testskip
         
         for frame in meta["frames"][::skip]:
-            fname = os.path.join(basedir, frame["file_path"] + ".png")
+            fname = os.path.join(basedir, f"{s}/{frame['file_path']}")
             img = imageio.imread(fname)
             imgs.append(img)
 
@@ -76,7 +76,7 @@ def load_real_data(basedir, half_res=False, args=None, testskip=1):
 
         counts.append(counts[-1] + imgs.shape[0])
 
-    i_split = [np.array(counts[i], counts[i+1]) for i in range(3)]
+    i_split = [np.arange(counts[i], counts[i+1]) for i in range(3)]
     i_train, _, _ = i_split
 
     imgs = np.concatenate(all_imgs, 0)
