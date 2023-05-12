@@ -36,6 +36,7 @@ from config_argparse import config_parser
 # DataLoader
 from load_llff import load_llff_data
 from load_blender import load_blender_data
+from load_real import load_real_data
 
 # NeRF network
 from create_nerf import create_nerf
@@ -129,6 +130,23 @@ def train():
                 (1. - images[..., -1:])
         else:
             images = images[..., :3]
+
+    elif args.dataset_type == 'real':
+        (
+            images, noisy_extrinsic, render_poses, hwf, i_split, gt_camera_info
+        ) = load_real_data(args.datadir, args.half_res, args, args.testskip)
+
+        print("Loaded real dataset")
+        print("Images shape : ", images.shape)
+        print("HWF: ", hwf)
+        print("Directory path of data: ", args.datadir)
+
+        (gt_intrinsic, gt_extrinsic) = gt_camera_info
+        i_train, i_val, i_test = i_split
+
+        # 임시
+        near = 2.
+        far = 6.
 
     else:
         assert False,"Invalid Dataset Selected"
