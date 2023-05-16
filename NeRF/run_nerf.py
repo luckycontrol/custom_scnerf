@@ -130,6 +130,9 @@ def train():
                 (1. - images[..., -1:])
         else:
             images = images[..., :3]
+            black_pixels_mask = np.all(images == [0, 0, 0], axis=-1)
+            images[black_pixels_mask] = [255, 255, 255]
+            
 
     elif args.dataset_type == 'real':
         (
