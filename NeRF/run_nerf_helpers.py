@@ -90,7 +90,7 @@ def get_embedder(device, part, progress, multires, i=0):
 
     start = 0.1
     end = 0.5
-
+    
     alpha = (progress.data - start) / (end - start) * multires
     k = torch.arange(multires, dtype=torch.float32, device=device)
 
