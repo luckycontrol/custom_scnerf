@@ -43,23 +43,28 @@ class Embedder:
             freq_bands = 2.**torch.linspace(0., max_freq, steps=N_freqs)
         else:
             freq_bands = torch.linspace(2.**0., 2.**max_freq, steps=N_freqs)
+
+        for freq in freq_bands:
+            for p_fn in self.kwargs['periodic_fns']:
+                embed_fns.append(lambda x, p=p_fn, freq=freq: p_fn(x * freq))
+                out_dim += d
         
         # 3차원 공간 학습을 위한 코드
-        if self.part == "render":
-            for freq in freq_bands:
-                for p_fn in self.kwargs['periodic_fns']:
-                    embed_fns.append(lambda x, p_fn=p_fn, freq=freq : p_fn(x * freq))
-                    out_dim += d
+        #if self.part == "render":
+        #    for freq in freq_bands:
+        #        for p_fn in self.kwargs['periodic_fns']:
+        #            embed_fns.append(lambda x, p_fn=p_fn, freq=freq : p_fn(x * freq))
+        #            out_dim += d
 
         # 카메라 파라미터 학습을 위한 코드
-        else:
-            for i, _ in enumerate(freq_bands):
-                for p_fn in self.kwargs['periodic_fns']:
-                    def weighted_periodic_fn(x, p_fn=p_fn, freq=freq_bands[i], weight=self.weights[i]):
-                        return p_fn(x * freq) * weight
+        #else:
+        #    for i, _ in enumerate(freq_bands):
+        #        for p_fn in self.kwargs['periodic_fns']:
+        #            def weighted_periodic_fn(x, p_fn=p_fn, freq=freq_bands[i], weight=self.weights[i]):
+        #                return p_fn(x * freq) * weight
                     # embed_fns.append(lambda x, p_fn=p_fn, freq=freq_bands[i], weight=self.weights[i]: p_fn(x * freq) * weight)
-                    embed_fns.append(weighted_periodic_fn)
-                    out_dim += d
+        #            embed_fns.append(weighted_periodic_fn)
+        #            out_dim += d
                     
         self.embed_fns = embed_fns
         self.out_dim = out_dim 

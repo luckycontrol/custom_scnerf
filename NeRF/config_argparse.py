@@ -10,9 +10,9 @@ from pyhocon import ConfigFactory
 def config_parser():
     parser = configargparse.ArgumentParser()
     parser.add_argument('--config', is_config_file=True, help='config file path')
-    parser.add_argument("--expname", type=str, default='real_4dir_c2f', help='experiment name')
+    parser.add_argument("--expname", type=str, default='real_5dir_full', help='experiment name')
     parser.add_argument("--basedir", type=str, default='./logs/', help='where to store ckpts and logs')
-    parser.add_argument("--datadir", type=str, default='./data/real', help='input data directory')
+    parser.add_argument("--datadir", type=str, default='./data/real_5dir', help='input data directory')
 
     # training options
     parser.add_argument("--netdepth", type=int, default=8,
